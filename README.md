@@ -1,6 +1,13 @@
 # scRNAseq-preprocessing
 Documentation of and code for analyses performed to assess the effect of different methods for cleanup and pre-processing of raw scRNAseq data on downtream analyses.
 
+## Goals
+The primary objective of our methods assessment is to evaluate the sensitivity of downstream analyses of scRNA-seq data such as clustering, marker gene discovery and differential expression analysis across samples to the preprocessing and data cleanup steps that are employed to generated a filtered expression matrix. A broad overview of the options we evaluate are summarized in this schematic:
+
+
+<img src="./docs/img/analysisworkflow.png" alt="workflow schematic" height="300"/>
+
+
 ## Data
 In order to assess different tools and options for pre-processing scRNA-seq data, we downloaded publicly available data sets that were generated with 10x Chromium chemistry and sequenced on various contemporary Illumina sequencing instruments. We focused on datasets generated for mouse (*Mus musculus*) as the genome assembly and annotation are of exceptionally high quality, and there are no issues regarding patient anonymity that restrict data access as in the case human data. Below are the datasets we analyzed.
 
@@ -10,4 +17,7 @@ In order to assess different tools and options for pre-processing scRNA-seq data
 | Mouse | C57BL/6 | L8TX_181211_01_G12 | primary motor cortex | cells | Chromium 10x 3' Gene Expression v3 | NovaSeq6000 | 8,913 |114,812 | 6,691 |[nemo](https://assets.nemoarchive.org/dat-qg7n1b0) |[run1](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v3/mouse/raw/NW_TX0002-29_S01_L003-001.fastq.tar);[run2](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v3/mouse/raw/NW_TX0006-1_S01_L003.fastq.tar) |2 runs on same library |
 | Mouse | C57BL/6 | L8TX_190327_01_E04 | caudal nucleus, pallidum | cells | Chromium 10x 3' Gene Expression v3 | NovaSeq6000 | 18,173 | 77,393 | 2,734 | [nemo](https://assets.nemoarchive.org/dat-qg7n1b0) | [run1](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v2/mouse/raw/PAL/NW_TX0007-5_S01_L003.fastq.tar);[run2](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v3/mouse/raw/NW_TX0010-5_S01_L003.fastq.tar) | 2 runs on same library |
 | Mouse | C57BL/6 | L8TX_190509_01_E09 | striatum, striatal amygdala | cells | Chromium 10x 3' Gene Expression v3 | NovaSeq6000 | 13,475 | 82,801 | 3,400 | [nemo](https://assets.nemoarchive.org/dat-qg7n1b0) | [run1](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v2/mouse/raw/STR/NW_TX0007-8_S01_L003.fastq.tar);[run2](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v2/mouse/raw/STR/NW_TX0010-7_S01_L003.fastq.tar) | 2 runs on same library |
-| Mouse | C57BL/6 | L8TX_210204_01_H05 | olfactory region: main and accessory olfactory bulbs | cells | Chromium 10x 3' Gene Expression v3 | NovaSeq6000 | 10,895 | 136,593 | 3,971 | [nemo](https://assets.nemoarchive.org/dat-qg7n1b0) | [fastq]( https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v3/mouse/raw/NW_TX0109-4_S01_L003-001.fastq.tar) | | 
+| Mouse | C57BL/6 | L8TX_210204_01_H05 | olfactory region: main and accessory olfactory bulbs | cells | Chromium 10x 3' Gene Expression v3 | NovaSeq6000 | 10,895 | 136,593 | 3,971 | [nemo](https://assets.nemoarchive.org/dat-qg7n1b0) | [fastq]( https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v3/mouse/raw/NW_TX0109-4_S01_L003-001.fastq.tar) | |
+
+
+
