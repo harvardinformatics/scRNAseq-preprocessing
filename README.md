@@ -5,8 +5,9 @@ Documentation of and code for analyses performed to assess the effect of differe
 The primary objective of our methods assessment is to evaluate the sensitivity of downstream analyses of scRNA-seq data such as clustering, marker gene discovery and differential expression analysis across samples to the preprocessing and data cleanup steps that are employed to generated a filtered expression matrix. A broad overview of the options we evaluate are summarized in this schematic:
 
 
-<img src="./docs/img/analysisworkflow.png" alt="workflow schematic" height="300"/>
-
+<p align="center">
+    <img src="./docs/img/analysisworkflow.png" alt="workflow schematic" height="600"/>
+</p>
 
 ## Data
 In order to assess different tools and options for pre-processing scRNA-seq data, we downloaded publicly available data sets that were generated with 10x Chromium chemistry and sequenced on various contemporary Illumina sequencing instruments. We focused on datasets generated for mouse (*Mus musculus*) as the genome assembly and annotation are of exceptionally high quality, and there are no issues regarding patient anonymity that restrict data access as in the case human data. Below are the datasets we analyzed.
