@@ -1,12 +1,15 @@
-def input_function:
-    return sampleinfo.loc[sampleinfo["sampleid"] ==wildcards.sample,"tenx_datadir"].values[0]
+def input_function(wildcards):
+    tenx_dir = sampleinfo.loc[sampleinfo["sampleid"] == wildcards.sample, "tenx_datadir"].values[0]
+    input_path = os.path.join(tenx_dir, "filtered_feature_bc_matrix")
+    print(f"Input path for sample {wildcards.sample}: {input_path}")
+    return input_path
 
 rule tenx2seuratrds:
     input:
-        raw = input_function + "/raw_feature_bc_matrix"
-        filtered =  input_function + "/filtered_feature_bc_matrix"
+        input_function
     output:
-        "raw_seurat" + "{sample"} + ".rds",
-        "filtered_seurat" + "{sample"} + ".rds"
+        "results/seurat_filtered/filtered_seurat_" + "{sample}" + ".rds"
     conda:
-        "envs/tenx2seuratrds" 
+        "../envs/tenx2seuratrds.yml" 
+    shell:
+        "Rscript scripts/tenx2seuratrds.R  {input}"
