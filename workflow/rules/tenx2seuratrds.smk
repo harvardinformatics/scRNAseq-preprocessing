@@ -12,4 +12,4 @@ rule tenx2seuratrds:
     conda:
         "../envs/tenx2seuratrds.yml" 
     shell:
-        "Rscript scripts/tenx2seuratrds.R  {input}"
+        "Rscript workflow/scripts/tenx2seuratrds.R  {input} {output}"
