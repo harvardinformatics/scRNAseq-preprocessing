@@ -1,1 +1,4 @@
 sampleTable: "samplesheet.tsv"
+
+ambient_decon_methods: ["soupx"]
+doublet_removal_methods: ["scdblfinder"]

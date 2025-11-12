@@ -1,14 +1,24 @@
 import pandas as pd
 import os
-sampleinfo = pd.read_table(config["sampleTable"],dtype={"sampleid": str})
+import yaml
 
+sampleinfo = pd.read_table(config["sampleTable"],dtype={"sampleid": str})
 
 SAMPLES=list(sampleinfo.loc[:,"sampleid"])
 
+with open("profiles/slurm/config.yaml") as f:
+    slurm_profile_config = yaml.safe_load(f)
+
+print(slurm_profile_config,flush=True)
+
+DECON_METHODS = config["ambient_decon_methods"]
+DOUBLET_METHODS = config["doublet_removal_methods"]
 
 rule all:
     input:
-        expand("results/seurat_filtered/filtered_seurat_{sample}.rds",sample=SAMPLES)
+        expand("results/{decon_method}/seurat_{decon_method}_" + "{sample}" + ".rds",sample=SAMPLES,decon_method=DECON_METHODS)
     default_target: True
 
 include: "rules/tenx2seuratrds.smk"
+include: "rules/soupx.smk"
+#include: "rules/scdblfinder.smk"
