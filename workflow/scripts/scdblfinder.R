@@ -3,8 +3,9 @@ seurat <- args[1]
 output <- args[2]
 
 library("Seurat")
+library("scDblFinder")
 
-seurat <- readRDS(seurat))
+seurat <- readRDS(seurat)
 sce <- as.SingleCellExperiment(seurat)
 sce <- scDblFinder(sce)
 seurat$scDblFinder.class <- colData(sce)$scDblFinder.class

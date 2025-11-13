@@ -1,20 +1,15 @@
 def input_function(wildcards):
-    return f"results/{wildcards.ambientdecon_method}/{wildcards.sample}.txt"
+    return f"results/{wildcards.decon_method}/seurat_{wildcards.decon_method}_{wildcards.sample}.rds"
 
-# Output function: distinguish based on method
-def output_function(wildcards):
-    return f"results/{wildcards.doublet_method}_{wildcards.sample}.txt"
 
 rule scdblfinder:
     input:
-        seurat  =  "results/soupx/filtered_seurat_" + "{sample}" + ".rds"
+        input_function
     output:
-        "results/soupx/seurat_scdblfinder_" + "{sample}" + ".rds"
+         "results/{doublet_method}/seurat_{doublet_method}_{decon_method}_{sample}.rds"
     conda:
-        "../envs/soupx.yml"
-    resources:
-        mem_mb = lambda wildcards, attempt: int(slurm_profile_config["mem_mb"]['default-resources']['mem_mb'] * (2 ** (attempt - 1)))
+        "../envs/scdblfinder.yml"
     shell:
         """
-        Rscript workflow/scripts/soupx.R  {input.filtered} {input.raw} {input.seurat_base} {output}
+        Rscript workflow/scripts/scdblfinder.R  {input} {output}
         """
