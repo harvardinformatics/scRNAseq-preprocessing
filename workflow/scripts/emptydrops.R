@@ -4,6 +4,7 @@ output <- args[2]
 
 library("Seurat")
 library("DropletUtils")
+library("scater")
 
 droputil_rawdata <-read10xCounts(raw)
 colnames(droputil_rawdata) <- droputil_rawdata$Barcode
@@ -15,4 +16,4 @@ droputil_filtered <- droputil_rawdata[,is.cell]
 droputil_filtered <- logNormCounts(droputil_filtered)
 seurat_droputil_filtered <- as.Seurat(droputil_filtered, counts = "counts",data="logcounts") 
 seurat_droputil_filtered[["percent.mt"]] <- PercentageFeatureSet(seurat_droputil_filtered, pattern = "(?i)^mt-")
-saveRDS(seurat_droputils_filtered,file=output)
+saveRDS(seurat_droputil_filtered,file=output)

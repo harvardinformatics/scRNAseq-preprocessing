@@ -9,16 +9,17 @@ SAMPLES=list(sampleinfo.loc[:,"sampleid"])
 with open("profiles/slurm/config.yaml") as f:
     slurm_profile_config = yaml.safe_load(f)
 
-print(slurm_profile_config,flush=True)
-
 DECON_METHODS = config["ambient_decon_methods"]
 DOUBLET_METHODS = config["doublet_removal_methods"]
 
 rule all:
     input:
-        expand("results/{doublet_method}/seurat_{doublet_method}_{decon_method}_" + "{sample}" + ".rds",sample=SAMPLES,doublet_method=DOUBLET_METHODS,decon_method=DECON_METHODS)
+        expand("results/{doublet_method}/seurat_{doublet_method}_{decon_method}_" + "{sample}" + ".rds",sample=SAMPLES,doublet_method=DOUBLET_METHODS,decon_method=DECON_METHODS),
+        expand("results/emptydrops/seurat_emptydrops_{sample}.rds", sample=SAMPLES) 
     default_target: True
 
 include: "rules/tenx2seuratrds.smk"
 include: "rules/soupx.smk"
 include: "rules/scdblfinder.smk"
+include: "rules/emptydrops.smk"
+

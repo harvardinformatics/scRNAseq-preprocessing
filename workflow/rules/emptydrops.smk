@@ -10,6 +10,8 @@ rule emptydrops:
          "results/emptydrops/seurat_emptydrops_{sample}.rds"
     conda:
         "../envs/emptydrops.yml"
+    resources:
+        mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1)))
     shell:
         """
         Rscript workflow/scripts/emptydrops.R  {input} {output}
