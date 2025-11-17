@@ -8,3 +8,4 @@ dependencies:
  - r-base
  - r-seurat
  - bioconductor-scdblfinder
+ - bioconductor-glmgampoi
