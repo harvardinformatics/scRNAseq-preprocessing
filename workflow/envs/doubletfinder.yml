@@ -1,0 +1,15 @@
+channels:
+ - conda-forge
+ - bioconda
+
+channel_priority: strict
+
+dependencies:
+ - r-base
+ - r-seurat
+ - r-remotes
+ - git
+ - r-fields
+ - r-matrix
+ - r-kernsmooth
+ - r-rocr
