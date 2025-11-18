@@ -4,6 +4,7 @@ output <- args[2]
 
 library("Seurat")
 library("DoubletFinder")
+library("igraph")
 
 seurat <- readRDS(seurat)
 

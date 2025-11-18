@@ -13,3 +13,13 @@ dependencies:
  - r-matrix
  - r-kernsmooth
  - r-rocr
+ - libxml2
+ - libcurl
+ - pkg-config
+ - gcc
+ - gxx
+ - gfortran
+ - zlib
+ - xz
+ - r-igraph
+ - bioconductor-glmgampoi
