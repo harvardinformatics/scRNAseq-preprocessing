@@ -2,7 +2,7 @@ localrules: install_doubletfinder
 
 rule install_doubletfinder:
   output:
-    touch("results/doubletfinder_installed.txt")
+    "results/doubletfinder_installed.txt"
   conda:
     "../envs/doubletfinder.yml"
   shell:

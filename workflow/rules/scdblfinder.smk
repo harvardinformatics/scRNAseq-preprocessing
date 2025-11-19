@@ -1,10 +1,6 @@
-def input_function(wildcards):
-    return f"results/{wildcards.decon_method}/seurat_{wildcards.decon_method}_{wildcards.sample}.rds"
-
-
 rule scdblfinder:
     input:
-        input_function
+        "results/{decon_method}/seurat_{decon_method}_{sample}.rds"
     output:
          "results/scdblfinder/seurat_scdblfinder_{decon_method}_{sample}.rds"
     conda:
