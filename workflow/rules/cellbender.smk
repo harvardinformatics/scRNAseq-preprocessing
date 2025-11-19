@@ -7,16 +7,15 @@ rule cellbender:
     input:
         input_function
     output:
-         "results/cellbender/seurat_cellbender_{sample}.rds"
-    conda:
-        "../envs/cellbender.yml"
+        "results/cellbender/cellbender_{sample}.h5"
+    singularity:
+        "docker://us.gcr.io/broad-dsde-methods/cellbender:latest"
     resources:
         mem_mb = lambda wildcards, attempt: int(50000 * (2 ** (attempt - 1))),
         slurm_partition="gpu",    
         gres="gpu:1",
-        runtime=2880   
+        runtime=2880
     shell:
         """
-        cellbender remove-background --cuda --input {input} --output results/cellbender/cellbender_{wildcards.sample}.h5
-        Rscript workflow/script/cellbender2seurat.R results/cellbender/cellbender_{wildcards.sample}.h5 {output}
-        """
+        cellbender remove-background --cuda --input {input} --output {output}
+        """ 
