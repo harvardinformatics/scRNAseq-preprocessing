@@ -1,3 +1,5 @@
+conda-channel-priority: "strict"
+
 sampleTable: "samplesheet.tsv"
 
 ambient_decon_methods: ["soupx"]

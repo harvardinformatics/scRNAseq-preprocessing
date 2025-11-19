@@ -17,7 +17,8 @@ rule all:
         expand("results/{doublet_method}/seurat_{doublet_method}_{decon_method}_" + "{sample}" + ".rds",sample=SAMPLES,doublet_method=DOUBLET_METHODS,decon_method=DECON_METHODS),
         expand("results/emptydrops/seurat_emptydrops_{sample}.rds", sample=SAMPLES),
         "results/doubletfinder_installed.txt",
-        expand("results/{doublet_method}/seurat_{doublet_method}_{decon_method}_{sample}.rds",sample=SAMPLES,doublet_method=DOUBLET_METHODS,decon_method=DECON_METHODS)
+        expand("results/{doublet_method}/seurat_{doublet_method}_{decon_method}_{sample}.rds",sample=SAMPLES,doublet_method=DOUBLET_METHODS,decon_method=DECON_METHODS),
+        expand("results/cellbender/seurat_cellbender_{sample}.rds",sample=SAMPLES)
         
     default_target: True
 
@@ -27,3 +28,4 @@ include: "rules/scdblfinder.smk"
 include: "rules/emptydrops.smk"
 include: "rules/install_doubletfinder.smk"
 include: "rules/doubletfinder.smk"
+include: "rules/cellbender.smk"
