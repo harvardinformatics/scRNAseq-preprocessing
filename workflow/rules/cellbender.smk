@@ -8,7 +8,7 @@ rule cellbender:
         input_function
     output:
         "results/cellbender/cellbender_{sample}.h5"
-    singularity:
+    container:
         "docker://us.gcr.io/broad-dsde-methods/cellbender:latest"
     resources:
         mem_mb = lambda wildcards, attempt: int(50000 * (2 ** (attempt - 1))),
