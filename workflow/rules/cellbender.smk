@@ -18,5 +18,5 @@ rule cellbender:
     shell:
         """
         cellbender remove-background --cuda --input {input} --output results/cellbender/cellbender_{wildcards.sample}.h5
-        Rscript workflow/script/cellbender.R results/cellbender/cellbender_{wildcards.sample}.h5 {output}
+        Rscript workflow/script/cellbender2seurat.R results/cellbender/cellbender_{wildcards.sample}.h5 {output}
         """
