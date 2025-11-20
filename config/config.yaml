@@ -2,5 +2,5 @@ conda-channel-priority: "strict"
 
 sampleTable: "samplesheet.tsv"
 
-ambient_decon_methods: ["soupx"]
+ambient_decon_methods: ["soupx","cellbender"]
 doublet_removal_methods: ["doubletfinder", "scdblfinder"]
