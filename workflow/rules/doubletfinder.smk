@@ -1,7 +1,7 @@
 rule doubletfinder:
     input:
-        "results/doubletfinder_installed.txt",
-        "results/{decon_method}/seurat_{decon_method}_{sample}.rds"
+        install_validation="results/doubletfinder_installed.txt",
+        data="results/{decon_method}/seurat_{decon_method}_{sample}.rds"
     output:
          "results/doubletfinder/seurat_doubletfinder_{decon_method}_{sample}.rds"
     conda:
@@ -10,5 +10,5 @@ rule doubletfinder:
         mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1)))
     shell:
         """
-        Rscript workflow/scripts/doubletfinder.R  {input} {output}
+        Rscript workflow/scripts/doubletfinder.R  {input.data} {output}
         """

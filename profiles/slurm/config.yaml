@@ -1,3 +1,6 @@
+use-singularity: True
+singularity-args: "\"--nv\""
+
 set-threads:
     tenx2seuratrds: 1
     soupx: 1
