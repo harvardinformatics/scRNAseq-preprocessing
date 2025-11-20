@@ -7,7 +7,7 @@ rule cellbender:
     input:
         input_function
     output:
-        "results/cellbender/cellbender_{sample}.h5"
+        "results/cellbender/cellbender_{sample}_filtered.h5"
     container:
         "docker://us.gcr.io/broad-dsde-methods/cellbender:latest"
     resources:

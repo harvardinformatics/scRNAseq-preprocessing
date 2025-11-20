@@ -7,4 +7,6 @@ channel_priority: strict
 dependencies:
  - r-base
  - r-seurat
+ - r-sccustomize
+ - r-hdf5r
  - bioconductor-glmgampoi
