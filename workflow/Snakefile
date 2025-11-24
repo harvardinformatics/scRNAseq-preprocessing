@@ -14,9 +14,10 @@ DOUBLET_METHODS = config["doublet_removal_methods"]
 
 rule all:
     input:
-        expand("results/emptydrops/seurat_emptydrops_{sample}.rds", sample=SAMPLES),
+        #expand("results/emptydrops/seurat_emptydrops_{sample}.rds", sample=SAMPLES),
         expand("results/{doublet_method}/seurat_{doublet_method}_{decon_method}_{sample}.rds",sample=SAMPLES,doublet_method=DOUBLET_METHODS,decon_method=DECON_METHODS),
-        expand("results/cellbender/seurat_cellbender_{sample}.rds",sample=SAMPLES)
+        expand("results/cellbender/seurat_cellbender_{sample}.rds",sample=SAMPLES),
+        expand("results/soupx/seurat_soupx_emptydrops_{sample}.rds",sample=SAMPLES)
     default_target: True
 
 include: "rules/tenx2seuratrds.smk"
@@ -27,3 +28,4 @@ include: "rules/install_doubletfinder.smk"
 include: "rules/doubletfinder.smk"
 include: "rules/cellbender.smk"
 include: "rules/cellbender2seurat.smk"
+include: "rules/soupx_emptydrops.smk"

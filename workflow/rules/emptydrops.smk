@@ -7,12 +7,13 @@ rule emptydrops:
     input:
         input_function
     output:
-         "results/emptydrops/seurat_emptydrops_{sample}.rds"
+         seurat="results/emptydrops/seurat_emptydrops_{sample}.rds",
+         matrixdir=directory("results/emptydrops/{sample}_emptydrops_filtered_matrix")
     conda:
         "../envs/emptydrops.yml"
     resources:
         mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1)))
     shell:
         """
-        Rscript workflow/scripts/emptydrops.R  {input} {output}
+        Rscript workflow/scripts/emptydrops.R  {input} {output.seurat} {output.matrixdir}
         """
