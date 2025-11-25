@@ -2,5 +2,6 @@ conda-channel-priority: "strict"
 
 sampleTable: "samplesheet.tsv"
 
+emptydrop_removal_methods: ["tenx","emptydrops"]
 ambient_decon_methods: ["soupx","cellbender"]
 doublet_removal_methods: ["doubletfinder", "scdblfinder"]

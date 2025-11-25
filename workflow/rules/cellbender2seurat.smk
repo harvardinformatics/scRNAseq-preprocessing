@@ -2,7 +2,7 @@ rule cellbender2seurat:
     input:
         "results/cellbender/cellbender_{sample}_filtered.h5"
     output:
-         "results/cellbender/seurat_cellbender_{sample}.rds"
+         "results/cellbender/seurat_cellbender_fromraw_{sample}.rds"
     conda:
         "../envs/tenx2seuratrds.yml"
     resources:

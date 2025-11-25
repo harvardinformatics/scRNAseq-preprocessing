@@ -8,7 +8,7 @@ rule soupx_emptydrops:
     input:
         raw=input_function_raw,
         filtered = "results/emptydrops/{sample}_emptydrops_filtered_matrix",
-        seurat_base = "results/emptydrops/seurat_emptydrops_{sample}.rds"
+        seurat_base = "results/emptydrops/filtered_seurat_emptydrops_{sample}.rds"
     output:
         "results/soupx/seurat_soupx_emptydrops_" + "{sample}" + ".rds"
     conda:

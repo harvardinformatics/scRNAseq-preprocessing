@@ -8,7 +8,7 @@ rule tenx2seuratrds:
     input:
         input_function
     output:
-        "results/seurat_filtered/filtered_seurat_" + "{sample}" + ".rds"
+        "results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + ".rds"
     conda:
         "../envs/tenx2seuratrds.yml" 
     shell:
