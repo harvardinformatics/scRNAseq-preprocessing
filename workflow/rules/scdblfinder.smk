@@ -1,8 +1,8 @@
 rule scdblfinder:
     input:
-        "results/{decon_method}/seurat_{decon_method}_{sample}.rds"
+        "results/{decon_method}/seurat_{decon_method}_{empty_method}_{sample}.rds"
     output:
-         "results/scdblfinder/seurat_scdblfinder_{decon_method}_{sample}.rds"
+         "results/scdblfinder/seurat_scdblfinder_{decon_method}_{empty_method}_{sample}.rds"
     conda:
         "../envs/scdblfinder.yml"
     resources:

@@ -7,7 +7,7 @@ rule emptydrops:
     input:
         input_function
     output:
-         seurat="results/emptydrops/seurat_emptydrops_{sample}.rds",
+         seurat="results/emptydrops/filtered_seurat_emptydrops_{sample}.rds",
          matrixdir=directory("results/emptydrops/{sample}_emptydrops_filtered_matrix")
     conda:
         "../envs/emptydrops.yml"

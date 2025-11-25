@@ -13,9 +13,9 @@ rule soupx:
     input:
         raw=input_function_raw,
         filtered =  input_function_filtered,
-        seurat_base =  "results/seurat_filtered/filtered_seurat_" + "{sample}" + ".rds"
+        seurat_base =  "results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + ".rds"
     output:
-        "results/soupx/seurat_soupx_" + "{sample}" + ".rds"
+        "results/soupx/seurat_soupx_tenx_" + "{sample}" + ".rds"
     conda:
         "../envs/soupx.yml"
     resources:

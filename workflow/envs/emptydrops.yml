@@ -9,5 +9,6 @@ dependencies:
  - r-seurat
  - bioconductor-dropletutils
  - bioconductor-scater
+ - bioconductor-glmgampoi
  - r-matrix
  - r-r.utils
