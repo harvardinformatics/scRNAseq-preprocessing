@@ -1,9 +1,9 @@
 rule posthocfilter:
     input:
-        "results/{doublet_method}/seurat_{doubletmethod}_{decon_method}_{empty_method}_{sample}.rds"
+        "results/{doublet_method}/seurat_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds"
 
     output:
-        "results/posthocfilter/seurat_posthocfilt_{doubletmethod}_{decon_method}_{empty_method}_{sample}.rds"
+        "results/posthocfilter/seurat_posthocfilt_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds"
     conda:
         "../envs/posthocfilter.yml"
     resources:
