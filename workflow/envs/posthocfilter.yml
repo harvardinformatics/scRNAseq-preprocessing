@@ -1,0 +1,11 @@
+channels:
+ - conda-forge
+ - bioconda
+
+channel_priority: strict
+
+dependencies:
+ - r-base
+ - r-seurat
+ - bioconductor-glmgampoi
+ - bioconductor-scater
