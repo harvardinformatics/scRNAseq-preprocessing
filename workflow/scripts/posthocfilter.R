@@ -12,7 +12,7 @@ qc <- perCellQCMetrics(sce, subsets = list(Mito = mito_genes))
 high_mito <- isOutlier(qc$subsets_Mito_percent, nmads=3, type="higher")
 low_umi     <- isOutlier(qc$sum, nmads = 3, type = "lower")
 low_feature <- isOutlier(qc$detected, nmads = 3, type = "lower")
-discard <- high_mito | low_counts | low_features
+discard <- high_mito | low_umi | low_feature
 cells_to_keep <- colnames(seurat)[!discard]
 seurat_filtered<- subset(seurat, cells = cells_to_keep)
 
