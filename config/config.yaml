@@ -5,3 +5,7 @@ sampleTable: "samplesheet.tsv"
 emptydrop_removal_methods: ["tenx","emptydrops"]
 ambient_decon_methods: ["soupx","cellbender"]
 doublet_removal_methods: ["doubletfinder", "scdblfinder"]
+
+min_nfeature: 200
+min_ncount: 500
+max_mtdna: 5
