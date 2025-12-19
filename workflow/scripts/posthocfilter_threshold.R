@@ -1,9 +1,9 @@
 args <- commandArgs(trailingOnly = TRUE)
 seurat <- args[1]
 filtered_output <- args[2]
-min_nfeature <- args[3]
-min_ncount <- args[4]
-max_mtdna <- args[5]
+min_nfeature <- as.numeric(args[3])
+min_ncount <- as.numeric(args[4])
+max_mtdna <- as.numeric(args[5])
 library("Seurat")
 library("glmGamPoi")
 library("scater")

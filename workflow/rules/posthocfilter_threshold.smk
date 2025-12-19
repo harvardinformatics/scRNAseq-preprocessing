@@ -14,5 +14,5 @@ rule posthocfilter_threshold:
         max_mtdna_pcent = config["max_mtdna"]
     shell:
         """
-        Rscript workflow/scripts/posthocfilter_threshold.R  {input} {output} {params.min_numfeatures} {params.min_umicount} {params.max_mtdna_pcent}
+        Rscript workflow/scripts/posthocfilter_threshold.R  {input} {output} {params.min_numfeatures} {params.min_umicount} {params.max_mtdna_pcent} 
         """
