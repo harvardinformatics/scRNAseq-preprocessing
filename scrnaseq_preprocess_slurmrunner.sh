@@ -6,7 +6,7 @@
 #SBATCH -N 1
 #SBATCH -c 1
 #SBATCH --mem 8000
-#SBATCH -t 08:00:00
+#SBATCH -t 36:00:00
 
 module purge
 module load python
