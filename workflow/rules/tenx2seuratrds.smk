@@ -10,6 +10,8 @@ rule tenx2seuratrds:
     output:
         "results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + ".rds"
     conda:
-        "../envs/tenx2seuratrds.yml" 
+        "../envs/tenx2seuratrds.yml"
+    resources:
+        runtime = 360 
     shell:
         "Rscript workflow/scripts/tenx2seuratrds.R  {input} {output}"

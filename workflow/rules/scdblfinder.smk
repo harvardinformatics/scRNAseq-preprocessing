@@ -6,7 +6,8 @@ rule scdblfinder:
     conda:
         "../envs/scdblfinder.yml"
     resources:
-        mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1)))
+        mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
+        runtime = 360
     shell:
         """
         Rscript workflow/scripts/scdblfinder.R  {input} {output}

@@ -14,7 +14,8 @@ rule soupx_emptydrops:
     conda:
         "../envs/soupx.yml"
     resources:
-        mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1)))
+        mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
+        runtime = 360
     shell:
         """
         Rscript workflow/scripts/soupx.R  {input.filtered} {input.raw} {input.seurat_base} {output}
