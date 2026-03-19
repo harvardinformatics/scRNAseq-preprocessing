@@ -8,12 +8,12 @@ library("igraph")
 
 seurat <- readRDS(seurat)
 
-seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "(?i)^mt-")
-seurat <- SCTransform(seurat, vars.to.regress = "percent.mt", verbose = FALSE)
-seurat <- RunPCA(seurat, verbose = FALSE)
-seurat <- RunUMAP(seurat, dims = 1:30)
-seurat <- FindNeighbors(seurat, dims = 1:30)
-seurat <- FindClusters(seurat)
+#seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "(?i)^mt-")
+#seurat <- SCTransform(seurat, vars.to.regress = "percent.mt", verbose = FALSE)
+#seurat <- RunPCA(seurat, verbose = FALSE)
+#seurat <- RunUMAP(seurat, dims = 1:30)
+#seurat <- FindNeighbors(seurat, dims = 1:30)
+#seurat <- FindClusters(seurat)
 
 
 sweep.res.list <- paramSweep(seurat, PCs = 1:10, sct = TRUE)
@@ -33,5 +33,12 @@ seurat <- doubletFinder(seurat, PCs = 1:10, pN = 0.25,
 
 classifier_colname <- paste("DF.classifications_0.25",optimal_pk,nExp_poi.adj,sep="_")
 seurat_singlets <- subset(seurat, cells = rownames(seurat@meta.data)[seurat@meta.data[[classifier_colname]] == "Singlet"]) 
+
+seurat_singlets[["percent.mt"]] <- PercentageFeatureSet(seurat_singlets, pattern = "(?i)^mt-")
+seurat_singlets <- SCTransform(seurat_singlets, vars.to.regress = "percent.mt", verbose = FALSE)
+seurat_singlets <- RunPCA(seurat_singlets, verbose = FALSE)
+seurat_singlets <- RunUMAP(seurat_singlets, dims = 1:30)
+seurat_singlets <- FindNeighbors(seurat_singlets, dims = 1:30)
+seurat_singlets <- FindClusters(seurat_singlets)
 
 saveRDS(seurat_singlets,file=output)
