@@ -1,0 +1,17 @@
+# scRNA seq data
+Below is a table listing the scRNA-seq data used to evaluate pre-processing workflows.
+
+| Species      |   Tissue   |  Sample ID | SRA ids  | Library type | Number cells (CellRanger) | Genome Version | Annotation Version | Data Source | Data Link |  
+| -----------  | ---------- | --------- | -----------  | ------------------------- | -------------- | ------------------ | ----------- | --------- |
+| *Mus musculus* | brain: CNU-PAL | 450087 | SRR26528467 | 10x 3' scRNA-seq | 10,492 |10xGenomics: refdata-gex-mm10-2020-A | - |[NEMO](https://nemoarchive.org/) | [ftp](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v2/mouse/raw/PAL/NW_TX0007-5_S01_L003.fastq.tar) |
+| *Mus musculus* | brain: OLF-MOB-AOB | 563792 | 	
+SRR26528595 | 10x 3' scRNA-seq | 10,895 | 10xGenomics: refdata-gex-mm10-2020-A | - | [NEMO](https://nemoarchive.org/) | [ftp]( https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v3/mouse/raw/NW_TX0109-4_S01_L003-001.fastq.tar) |
+| *Mus musculus* | cortex | CTX-0 | SRR18256555 | 10x 3' scRNA-seq | 3,108 | 10xGenomics: refdata-gex-mm10-2020-A | - | [Endo et al. 2022](https://www.science.org/doi/10.1126/science.adc9020) | - |
+| *Mus musculus* | cortex | TG-5 | SRR18256506 | 10x 3' scRNA-seq | 3,581 | 10xGenomics: refdata-gex-mm10-2020-A | - | [Endo et al. 2022](https://www.science.org/doi/10.1126/science.adc9020) | - |
+| *Octopus bimaculoides* | optic lobe | ob_OL_sample1 | SRR19903425;SRR19903427 | 10x 3' scRNA-seq | 22,175 | NCBI: GCF_001194135.2_ASM119413v2_genomic.fna | NCBI: GCF_001194135.2_ASM119413v2_genomic.gtf | [Songco-Casey et al. 2022](https://pubmed.ncbi.nlm.nih.gov/36318923/) | - |
+| *Octopus bimaculoides* | optic lobe | ob_OL_sample2 | SRR19903424;SRR19903426 | 10x 3' scRNA-seq | 17,493 | NCBI: GCF_001194135.2_ASM119413v2_genomic.fna | NCBI: GCF_001194135.2_ASM119413v2_genomic.gtf | [Songco-Casey et al. 2022](https://pubmed.ncbi.nlm.nih.gov/36318923/) | - |
+| *Gallus gallus* | brain: amygdala | LSR8 | SRR24457486 |  10x 3' scRNA-seq | 8,654 | Ensembl: Gallus_gallus.bGalGal1.mat.broiler.GRCg7b.dna_sm.toplevel.fa | Ensembl: Gallus_gallus.bGalGal1.mat.broiler.GRCg7b.115.gtf | [Chen et al. 2024](https://pmc.ncbi.nlm.nih.gov/articles/PMC11215297/) | - |
+| *Zea mays* | root tips | GEO: GSM5552419 | SRR15686125-SRR15686132 | 10x 3' scRNA-seq | 2,676 | Ensembl: Zea_mays.Zm-B73-REFERENCE-NAM-5.0.dna_sm.toplevel.fa | Enesembl: Zea_mays.Zm-B73-REFERENCE-NAM-5.0.62.gff3 | [Li et al. 2022](https://www.sciencedirect.com/science/article/pii/S2214514122000460) | - |
+| *Pogona vitticeps* | brain | E32 | SRR18210371 | 10x 3' scRNA-seq | 7,880 | NCBI: GCF_051106095.1_PviZW2.1_genomic.fna | NCBI: GCF_051106095.1_PviZW2.1_genomic.gtf | [Hain et al. 2022](https://pubmed.ncbi.nlm.nih.gov/36048944/) | - |
+| *Oryza sativa* | root | sc_108 | SRR27308639;SRR27308640 | 10x 3' scRNA-seq | 11,205 | Ensembl: Oryza_sativa.IRGSP-1.0.dna_sm.toplevel.fa | Ensembl: Oryza_sativa.IRGSP-1.0.62.gff3 | [Zhu et al. 2025](https://pubmed.ncbi.nlm.nih.gov/40307555/) | - |
+| *Oryza sativa* | root | sc_109 | SRR27308637;SRR27308638 | 10x 3' scRNA-seq | 9,386 | Ensembl: Oryza_sativa.IRGSP-1.0.dna_sm.toplevel.fa | Ensembl: Oryza_sativa.IRGSP-1.0.62.gff3 | [Zhu et al. 2025](https://pubmed.ncbi.nlm.nih.gov/40307555/) | - |
