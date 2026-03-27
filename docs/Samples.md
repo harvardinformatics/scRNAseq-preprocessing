@@ -2,7 +2,7 @@
 Below is a table listing the scRNA-seq data used to evaluate pre-processing workflows.
 
 | Species      |   Tissue   |  Sample ID | SRA ids  | Library type | Number cells (CellRanger) | Genome Version | Annotation Version | Data Source | Data Link |  
-| -----------  | ---------- | --------- | -----------  | ------------------------- | -------------- | ------------------ | ----------- | --------- |
+| -----------  | ---------- | --------- | -----------  | ------------------------- | -------------- | ------------------ | ----------- | --------- | --------- |
 | *Mus musculus* | brain: CNU-PAL | 450087 | SRR26528467 | 10x 3' scRNA-seq | 10,492 |10xGenomics: refdata-gex-mm10-2020-A | - |[NEMO](https://nemoarchive.org/) | [ftp](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v2/mouse/raw/PAL/NW_TX0007-5_S01_L003.fastq.tar) |
 | *Mus musculus* | brain: OLF-MOB-AOB | 563792 | 	
 SRR26528595 | 10x 3' scRNA-seq | 10,895 | 10xGenomics: refdata-gex-mm10-2020-A | - | [NEMO](https://nemoarchive.org/) | [ftp]( https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v3/mouse/raw/NW_TX0109-4_S01_L003-001.fastq.tar) |
