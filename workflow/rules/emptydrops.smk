@@ -7,14 +7,15 @@ rule emptydrops:
     input:
         input_function
     output:
-         seurat="results/emptydrops/filtered_seurat_emptydrops_{sample}.rds",
-         matrixdir=directory("results/emptydrops/{sample}_emptydrops_filtered_matrix")
+        seurat="results/emptydrops/filtered_seurat_emptydrops_{sample}.rds",
+        matrixdir=directory("results/emptydrops/{sample}_emptydrops_filtered_matrix"),
+        markers="results/emptydrops/filtered_seurat_emptydrops_{sample}_markergenes.csv"
     conda:
         "../envs/emptydrops.yml"
     resources:
         mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
-        runtime = 360
+        runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
     shell:
         """
-        Rscript workflow/scripts/emptydrops.R  {input} {output.seurat} {output.matrixdir}
+        Rscript workflow/scripts/emptydrops.R  {input} {output.seurat} {output.matrixdir} {output.markers}
         """

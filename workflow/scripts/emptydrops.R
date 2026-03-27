@@ -2,10 +2,16 @@ args <- commandArgs(trailingOnly = TRUE)
 raw <- args[1]
 seurat_output <- args[2]
 matrix_outdir <- args[3]
+markers_output <- args[4]
+
 library("Seurat")
 library("DropletUtils")
 library("scater")
 library("glmGamPoi")
+library("tidyverse")
+library("tools")
+
+options(future.globals.maxSize = 16 * 1024^3)
 
 # for back conversion to matrix
 library("Matrix")
@@ -29,6 +35,15 @@ seurat_droputil_filtered <- RunUMAP(seurat_droputil_filtered, dims = 1:30)
 seurat_droputil_filtered <- FindNeighbors(seurat_droputil_filtered, dims = 1:30)
 seurat_droputil_filtered <- FindClusters(seurat_droputil_filtered)
 saveRDS(seurat_droputil_filtered,file=seurat_output)
+
+
+markers <- FindAllMarkers(seurat_droputil_filtered)
+markers$genesymbol <- row.names(markers)
+workflow_name <- file_path_sans_ext(basename(markers_output))
+workflow_name <- gsub("_markergenes", "", workflow_name)
+sig_markers <- as_tibble(markers) %>% filter(p_val_adj<=0.05) %>% mutate(workflow=workflow_name)
+write_csv(sig_markers,file=markers_output)
+
 
 # convert emptyDrops-filtered object to 10x matrix data structure
 cm <- counts(droputil_filtered)

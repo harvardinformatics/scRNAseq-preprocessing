@@ -8,10 +8,13 @@ rule tenx2seuratrds:
     input:
         input_function
     output:
-        "results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + ".rds"
+        rds="results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + ".rds",
+        markers="results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + "_markergenes.csv"
     conda:
         "../envs/tenx2seuratrds.yml"
     resources:
-        runtime = 360 
+        mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
+        runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
+        
     shell:
-        "Rscript workflow/scripts/tenx2seuratrds.R  {input} {output}"
+        "Rscript workflow/scripts/tenx2seuratrds.R  {input} {output.rds} {output.markers}"
