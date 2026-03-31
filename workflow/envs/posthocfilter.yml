@@ -6,6 +6,7 @@ channel_priority: strict
 
 dependencies:
  - r-base
+ - r-tidyverse
  - r-seurat
  - bioconductor-glmgampoi
  - bioconductor-scater

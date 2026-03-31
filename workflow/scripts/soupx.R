@@ -3,10 +3,15 @@ filtered <- args[1]
 raw <- args[2]
 seurat_base <- args[3]
 output <- args[4]
+markers_output <- args[5]
 
 library("Seurat")
 library("glmGamPoi")
 library("SoupX")
+library("tidyverse")
+library("tools")
+
+options(future.globals.maxSize = 16 * 1024^3)
 
 filtered_matrix <- Seurat::Read10X(filtered)
 raw_matrix <- Seurat::Read10X(raw)
@@ -30,3 +35,10 @@ seurat_soupx <- RunUMAP(seurat_soupx, dims = 1:30)
 seurat_soupx <- FindNeighbors(seurat_soupx, dims = 1:30)
 seurat_soupx <- FindClusters(seurat_soupx)
 saveRDS(seurat_soupx,file=output)
+
+markers <- FindAllMarkers(seurat_soupx)
+markers$genesymbol <- row.names(markers)
+workflow_name <- file_path_sans_ext(basename(markers_output))
+workflow_name <- gsub("_markergenes", "", workflow_name)
+sig_markers <- as_tibble(markers) %>% filter(p_val_adj<=0.05) %>% mutate(workflow=workflow_name)
+write_csv(sig_markers,file=markers_output)

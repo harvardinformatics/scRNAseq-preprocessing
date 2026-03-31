@@ -10,13 +10,14 @@ rule soupx_emptydrops:
         filtered = "results/emptydrops/{sample}_emptydrops_filtered_matrix",
         seurat_base = "results/emptydrops/filtered_seurat_emptydrops_{sample}.rds"
     output:
-        "results/soupx/seurat_soupx_emptydrops_" + "{sample}" + ".rds"
+        rds="results/soupx/seurat_soupx_emptydrops_" + "{sample}" + ".rds",
+        markers="results/soupx/seurat_soupx_emptydrops_" + "{sample}" + "_markergenes.csv"
     conda:
         "../envs/soupx.yml"
     resources:
         mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
-        runtime = 360
+        runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
     shell:
         """
-        Rscript workflow/scripts/soupx.R  {input.filtered} {input.raw} {input.seurat_base} {output}
+        Rscript workflow/scripts/soupx.R  {input.filtered} {input.raw} {input.seurat_base} {output.rds} {output.markers}
         """
