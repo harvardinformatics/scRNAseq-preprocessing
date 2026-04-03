@@ -406,6 +406,103 @@ MakeMaxJaccardInterMethodDataframe_Multi <- function(meta1, meta_list, method_na
   dplyr::bind_rows(res_list)
 }
 
+#' @title
+#' Multi-panel boxplot of cluster stability across multiple datasets
+#'
+#' @description
+#' Creates a faceted boxplot of cluster-wise stability (e.g. max Jaccard values)
+#' for an arbitrary number of datasets, with one panel per dataset.
+#'
+#' @param ... One or more data frames containing per-cluster stability
+#'   summaries. Each must contain at least columns \code{clusterid} and
+#'   \code{max_jaccard}.
+#' @param panel_labels Optional character vector giving the labels to use for
+#'   the facets corresponding to the input data frames. If \code{NULL}
+#'   (default), labels are set to \code{"Dataset 1"}, \code{"Dataset 2"}, etc.
+#'   The length of \code{panel_labels} must match the number of data frames
+#'   supplied in \code{...}.
+#' @param nrow Integer; number of rows in the facet layout (default: \code{3}).
+#'
+#' @return A \code{ggplot2} object showing boxplots of \code{max_jaccard}
+#'   by \code{clusterid}, faceted by dataset/panel. A horizontal dashed red line
+#'   is drawn at \code{y = 0.75} as a visual stability threshold.
+#'
+#' @details
+#' All input data frames are combined into a single long-format data frame
+#' with an additional column \code{panel} indicating the dataset of origin.
+#' Cluster IDs are treated as factors, and facets are ordered according to
+#' \code{panel_labels}. This function is intended for visual comparison of
+#' cluster stability distributions across multiple datasets or methods.
+#'
+#' @importFrom dplyr bind_rows mutate
+#' @importFrom ggplot2 ggplot aes geom_boxplot geom_hline facet_wrap labs
+#'   theme_bw theme element_rect element_text
+#'
+#' @examples
+#' \dontrun{
+#' p <- MultiPanelStabilityByClusterPlot(
+#'   stab_ds1, stab_ds2, stab_ds3,
+#'   panel_labels = c("Dataset A", "Dataset B", "Dataset C"),
+#'   nrow = 1
+#' )
+#' print(p)
+#' }
+MultiPanelStabilityByClusterPlot <- function(...,
+                                             panel_labels = NULL,
+                                             nrow = 3,title="Stability by cluster") {
+  # Collect input data frames into a list
+  df_list <- list(...)
+  n_panels <- length(df_list)
+  if (n_panels == 0) {
+    stop("At least one data frame must be supplied.")
+  }
+  
+  # Default labels if none supplied
+  if (is.null(panel_labels)) {
+    panel_labels <- paste("Dataset", seq_len(n_panels))
+  }
+  if (length(panel_labels) != n_panels) {
+    stop("panel_labels must be NULL or a character vector with length equal to the number of data frames supplied.")
+  }
+  
+  # Add an identifier column to each data frame and combine
+  df_combined <- bind_rows(
+    lapply(seq_along(df_list), function(i) {
+      df <- df_list[[i]]
+      df$panel <- panel_labels[i]
+      df
+    })
+  )
+  
+  # Make sure clusterid is treated as discrete within each panel
+  df_combined <- df_combined %>%
+    mutate(
+      clusterid = as.factor(clusterid),
+      panel = factor(panel, levels = panel_labels)  # control facet order
+    )
+  
+  # Build the plot
+  p <- ggplot(df_combined, aes(x = clusterid, y = max_jaccard)) +
+    geom_boxplot(width = 0.2, outlier.shape = NA, fill = "white") +
+    geom_hline(yintercept = 0.75, color = "red", linetype = "dashed") +
+    facet_wrap(~ panel, scales = "free_x", nrow = nrow) +
+    labs(
+      x = "Cluster ID",
+      y = expression(paste("Cluster ", stability["max jaccard"])),
+      title = ""
+    ) +
+    theme(plot.title = element_text(hjust = 0)) +
+    theme_bw() +
+    theme(
+      strip.background = element_rect(fill = "gray", color = NA),
+      strip.text = element_text(face = "bold"),
+      axis.text.x = element_text(angle = 90, hjust = 1)
+    )
+  
+  return(p)
+}
+
+
 
 #' @title
 #' Compare inter-method vs intra-method cluster stability (downsampling-based)
@@ -571,6 +668,92 @@ MakeInterVsIntraStablePlot <- function(meta1, meta2,
   return(downsample_interstable_plot)
 }
 
+
+#' Plot silhouette width distributions across methods
+#'
+#' Takes a list of metadata tables (one per method), extracts per-cell
+#' silhouette widths, and produces a violin + boxplot comparison across
+#' methods.
+#'
+#' @param meta_list A list of data frames, one per method, typically
+#'   \code{seurat_obj@meta.data}. Each element must contain a
+#'   \code{silhouette_width} column, and either:
+#'   \itemize{
+#'     \item a \code{barcode} column, or
+#'     \item cell barcodes as row names (which will be converted to a
+#'       \code{barcode} column).
+#'   }
+#' @param method_labels A character vector of method names, one per element of
+#'   \code{meta_list}. Used for labeling and ordering the x-axis (and facets,
+#'   if extended).
+#'
+#' @return A \code{ggplot2} object showing, for each method, a violin plot of
+#'   the distribution of \code{silhouette_width} values with an overlaid
+#'   boxplot. A horizontal red dotted line is drawn at 0.
+#'
+#' @details
+#' For each metadata table, the function extracts \code{barcode} and
+#' \code{silhouette_width}, adds a \code{method} column based on
+#' \code{method_labels}, and row-binds all methods into a long-format data
+#' frame. Methods are then treated as an ordered factor, and silhouette
+#' distributions are visualized with \code{coord_flip()} so methods appear on
+#' the y-axis.
+#'
+#' @importFrom purrr map2_dfr
+#' @importFrom tibble rownames_to_column
+#' @importFrom dplyr select mutate
+#' @importFrom ggplot2 ggplot aes geom_violin geom_boxplot geom_hline
+#'   coord_flip xlab ylab theme_bw
+#'
+#' @examples
+#' \dontrun{
+#' p <- SilhouetteViolinByMethodPlot(
+#'   meta_list     = list(meta_method1, meta_method2, meta_method3),
+#'   method_labels = c("Method 1", "Method 2", "Method 3")
+#' )
+#' print(p)
+#' }
+SilhouetteViolinByMethodPlot <- function(meta_list, method_labels) {
+  if (length(meta_list) != length(method_labels)) {
+    stop("meta_list and method_labels must have the same length.")
+  }
+  
+  sil_long <- purrr::map2_dfr(
+    .x = meta_list,
+    .y = method_labels,
+    ~ {
+      meta_tbl <- .x
+      method   <- .y
+      
+      # if barcodes are rownames, turn them into a "barcode" column
+      if (!"barcode" %in% names(meta_tbl)) {
+        meta_tbl <- meta_tbl %>%
+          tibble::rownames_to_column(var = "barcode")
+      }
+      
+      meta_tbl %>%
+        dplyr::select(barcode, silhouette_width) %>%
+        dplyr::mutate(method = method)
+    }
+  )
+  
+  sil_long <- sil_long %>%
+    dplyr::mutate(method = factor(method, levels = method_labels))
+  
+  p <- ggplot2::ggplot(sil_long, ggplot2::aes(x = method, y = silhouette_width)) +
+    ggplot2::geom_violin(trim = FALSE, fill = "grey90", color = "grey40") +
+    ggplot2::geom_boxplot(width = 0.15, outlier.size = 0.3, outlier.alpha = 0.5) +
+    ggplot2::geom_hline(yintercept = 0, color = "red", linetype = "dotted") +
+    ggplot2::coord_flip() +
+    ggplot2::xlab("Method") +
+    ggplot2::ylab("Silhouette width (all barcodes)") +
+    ggplot2::theme_bw()
+  
+  return(p)
+}
+
+
+
 #' @title
 #' Plot median silhouette vs. Jaccard stability for multiple methods
 #'
@@ -630,10 +813,10 @@ ClusterStabilityVsSilhouettePlot <- function(meta_list, downsamp_list, method_la
     .x = seq_along(meta_list),
     .y = meta_list,
     ~ {
-      i           <- .x
-      meta_tbl    <- .y
+      i            <- .x
+      meta_tbl     <- .y
       downsamp_tbl <- downsamp_list[[i]]
-      method      <- method_labels[i]
+      method       <- method_labels[i]
       
       # column checks
       if (!all(c("seurat_clusters", "silhouette_width") %in% names(meta_tbl))) {
@@ -644,6 +827,15 @@ ClusterStabilityVsSilhouettePlot <- function(meta_list, downsamp_list, method_la
         stop(paste("Downsample index", i,
                    "does not have clusterid and max_jaccard columns"))
       }
+      
+      # cluster size per cluster
+      size_summary <- meta_tbl %>%
+        dplyr::group_by(clusterid = .data[["seurat_clusters"]]) %>%
+        dplyr::summarise(
+          cluster_size = dplyr::n(),
+          .groups = "drop"
+        ) %>%
+        dplyr::mutate(clusterid = as.character(clusterid))
       
       # median silhouette per cluster
       sil_summary <- meta_tbl %>%
@@ -665,6 +857,7 @@ ClusterStabilityVsSilhouettePlot <- function(meta_list, downsamp_list, method_la
       
       sil_summary %>%
         dplyr::inner_join(jac_summary, by = "clusterid") %>%
+        dplyr::inner_join(size_summary, by = "clusterid") %>%
         dplyr::mutate(method = method)
     }
   )
@@ -677,9 +870,22 @@ ClusterStabilityVsSilhouettePlot <- function(meta_list, downsamp_list, method_la
   
   ggplot(summary_df,
          aes(x = median_silhouette,
-             y = median_max_jaccard)) +
-    geom_point() +
-    facet_wrap(~ method, scales = "free") +
+             y = median_max_jaccard,
+             fill = cluster_size)) +          # map to fill, not color
+    geom_point(
+      shape = 21,        # filled circle with border
+      color = "black",   # border color
+      size  = 2.0,       # slightly larger than default
+      alpha = 0.8
+    ) +
+    facet_wrap(~ method, scales = "fixed") +
+    scale_x_continuous(limits = c(-1, 1)) +
+    scale_y_continuous(limits = c(0, 1)) +
+    scale_fill_gradient(
+      name = "Cluster size",
+      low  = "mistyrose",   # light red
+      high = "firebrick"          # strong red
+    ) +
     xlab("Median silhouette width") +
     ylab(expression(paste("Cluster ", stability[Jaccard]))) +
     theme_bw()
