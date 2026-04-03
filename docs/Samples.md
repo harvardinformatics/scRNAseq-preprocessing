@@ -3,7 +3,7 @@ Below is a table listing the scRNA-seq data used to evaluate pre-processing work
 
 | Species      |   Tissue   |  Sample ID | SRA ids  | Library type | Number cells (CellRanger) | Genome Version | Annotation Version | Data Source | Data Link |  
 | -----------  | ---------- | --------- | -----------  | ------------------------- | -------------- | ------------------ | ----------- | --------- | --------- |
-| *Mus musculus* | brain | neuron_10k_v3 | - | 10x 3' scRNA-seq | 11,831 | 10xGenomics: refdata-gex-mm10-2020-A | - | 10xGenomics | [10xGenomics data portal](https://www.10xgenomics.com/datasets) |
+| *Mus musculus* | brain | neuron_10k_v3 | - | 10x 3' scRNA-seq | 11,831 | 10xGenomics: refdata-gex-mm10-2020-A | - | 10xGenomics | [10xGenomics data portal](https://www.10xgenomics.com/datasets/10-k-brain-cells-from-an-e-18-mouse-v-3-chemistry-3-standard-3-0-0) |
 | *Mus musculus* | brain: CNU-PAL | 450087 | SRR26528467 | 10x 3' scRNA-seq | 10,492 |10xGenomics: refdata-gex-mm10-2020-A | - |[NEMO](https://nemoarchive.org/) | [ftp](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v2/mouse/raw/PAL/NW_TX0007-5_S01_L003.fastq.tar) |
 | *Mus musculus* | brain: OLF-MOB-AOB | 563792 | SRR26528595 | 10x 3' scRNA-seq | 10,895 | 10xGenomics: refdata-gex-mm10-2020-A | - | [NEMO](https://nemoarchive.org/) | [ftp]( https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v3/mouse/raw/NW_TX0109-4_S01_L003-001.fastq.tar) |
 | *Mus musculus* | cortex | CTX-0 | SRR18256555 | 10x 3' scRNA-seq | 3,108 | 10xGenomics: refdata-gex-mm10-2020-A | - | [Endo et al. 2022](https://www.science.org/doi/10.1126/science.adc9020) | - |
