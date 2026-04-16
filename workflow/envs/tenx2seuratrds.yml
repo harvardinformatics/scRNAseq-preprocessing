@@ -11,3 +11,4 @@ dependencies:
  - r-sccustomize
  - r-hdf5r
  - bioconductor-glmgampoi
+ - r-presto

@@ -3,13 +3,12 @@ filtered <- args[1]
 raw <- args[2]
 seurat_base <- args[3]
 output <- args[4]
-markers_output <- args[5]
+nclusters_output <- args[5]
+cluster_ids_output <- args[6]
 
 library("Seurat")
 library("glmGamPoi")
 library("SoupX")
-library("tidyverse")
-library("tools")
 
 options(future.globals.maxSize = 16 * 1024^3)
 
@@ -50,6 +49,16 @@ add_silhouette_to_metadata <- function(
   seurat_obj
 }
 
+write_cluster_metadata <- function(seurat_obj, nclusters_output, cluster_ids_output) {
+  cluster_ids <- levels(Idents(seurat_obj))
+  if (is.null(cluster_ids) || length(cluster_ids) == 0) {
+    cluster_ids <- sort(unique(as.character(Idents(seurat_obj))))
+  }
+  cluster_ids <- cluster_ids[!is.na(cluster_ids) & nzchar(cluster_ids)]
+  writeLines(cluster_ids, con = cluster_ids_output)
+  writeLines(as.character(length(cluster_ids)), con = nclusters_output)
+}
+
 filtered_matrix <- Seurat::Read10X(filtered)
 raw_matrix <- Seurat::Read10X(raw)
 
@@ -73,10 +82,4 @@ seurat_soupx <- FindNeighbors(seurat_soupx, dims = 1:30)
 seurat_soupx <- FindClusters(seurat_soupx)
 seurat_soupx <- add_silhouette_to_metadata(seurat_soupx)
 saveRDS(seurat_soupx,file=output)
-
-markers <- FindAllMarkers(seurat_soupx)
-markers$genesymbol <- row.names(markers)
-workflow_name <- file_path_sans_ext(basename(markers_output))
-workflow_name <- gsub("_markergenes", "", workflow_name)
-sig_markers <- as_tibble(markers) %>% filter(p_val_adj<=0.05) %>% mutate(workflow=workflow_name)
-write_csv(sig_markers,file=markers_output)
+write_cluster_metadata(seurat_soupx, nclusters_output, cluster_ids_output)

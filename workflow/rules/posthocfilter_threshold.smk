@@ -5,7 +5,8 @@ rule posthocfilter_threshold:
 
     output:
         rds="results/posthocfilter/seurat_posthocfilt_threshold_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds",
-        markers="results/posthocfilter/seurat_posthocfilt_threshold_{doublet_method}_{decon_method}_{empty_method}_{sample}_markergenes.csv"
+        nclusters="results/posthocfilter/seurat_posthocfilt_threshold_{doublet_method}_{decon_method}_{empty_method}_{sample}_nclusters.txt",
+        cluster_ids="results/posthocfilter/seurat_posthocfilt_threshold_{doublet_method}_{decon_method}_{empty_method}_{sample}_cluster_ids.txt"
     conda:
         "../envs/posthocfilter.yml"
     resources:
@@ -18,5 +19,5 @@ rule posthocfilter_threshold:
     shell:
         """
         Rscript {input.script}  {input.data} {output.rds} \
-        {params.min_numfeatures} {params.min_umicount} {params.max_mtdna_pcent} {output.markers} 
+        {params.min_numfeatures} {params.min_umicount} {params.max_mtdna_pcent} {output.nclusters} {output.cluster_ids}
         """
