@@ -1,6 +1,7 @@
 rule posthocfilter_mad:
     input:
-        "results/{doublet_method}/seurat_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds"
+        data="results/{doublet_method}/seurat_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds",
+        script="workflow/scripts/posthocfilter_mad.R"
 
     output:
         rds="results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds",
@@ -12,5 +13,5 @@ rule posthocfilter_mad:
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
     shell:
         """
-        Rscript workflow/scripts/posthocfilter_mad.R  {input} {output.rds} {output.markers}
+        Rscript {input.script}  {input.data} {output.rds} {output.markers}
         """

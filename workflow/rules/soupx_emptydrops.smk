@@ -8,7 +8,8 @@ rule soupx_emptydrops:
     input:
         raw=input_function_raw,
         filtered = "results/emptydrops/{sample}_emptydrops_filtered_matrix",
-        seurat_base = "results/emptydrops/filtered_seurat_emptydrops_{sample}.rds"
+        seurat_base = "results/emptydrops/filtered_seurat_emptydrops_{sample}.rds",
+        script="workflow/scripts/soupx.R"
     output:
         rds="results/soupx/seurat_soupx_emptydrops_" + "{sample}" + ".rds",
         markers="results/soupx/seurat_soupx_emptydrops_" + "{sample}" + "_markergenes.csv"
@@ -19,5 +20,5 @@ rule soupx_emptydrops:
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
     shell:
         """
-        Rscript workflow/scripts/soupx.R  {input.filtered} {input.raw} {input.seurat_base} {output.rds} {output.markers}
+        Rscript {input.script}  {input.filtered} {input.raw} {input.seurat_base} {output.rds} {output.markers}
         """

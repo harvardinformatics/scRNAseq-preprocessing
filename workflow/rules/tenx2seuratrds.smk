@@ -6,7 +6,8 @@ def input_function(wildcards):
 
 rule tenx2seuratrds:
     input:
-        input_function
+        data=input_function,
+        script="workflow/scripts/tenx2seuratrds.R"
     output:
         rds="results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + ".rds",
         markers="results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + "_markergenes.csv"
@@ -17,4 +18,4 @@ rule tenx2seuratrds:
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
         
     shell:
-        "Rscript workflow/scripts/tenx2seuratrds.R  {input} {output.rds} {output.markers}"
+        "Rscript {input.script}  {input.data} {output.rds} {output.markers}"

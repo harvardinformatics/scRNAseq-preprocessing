@@ -1,6 +1,7 @@
 rule posthocfilter_threshold:
     input:
-        "results/{doublet_method}/seurat_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds"
+        data="results/{doublet_method}/seurat_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds",
+        script="workflow/scripts/posthocfilter_threshold.R"
 
     output:
         rds="results/posthocfilter/seurat_posthocfilt_threshold_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds",
@@ -16,6 +17,6 @@ rule posthocfilter_threshold:
         max_mtdna_pcent = config["max_mtdna"]
     shell:
         """
-        Rscript workflow/scripts/posthocfilter_threshold.R  {input} {output.rds} \
+        Rscript {input.script}  {input.data} {output.rds} \
         {params.min_numfeatures} {params.min_umicount} {params.max_mtdna_pcent} {output.markers} 
         """

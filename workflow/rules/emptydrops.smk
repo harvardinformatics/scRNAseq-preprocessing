@@ -5,7 +5,8 @@ def input_function(wildcards):
 
 rule emptydrops:
     input:
-        input_function
+        data=input_function,
+        script="workflow/scripts/emptydrops.R"
     output:
         seurat="results/emptydrops/filtered_seurat_emptydrops_{sample}.rds",
         matrixdir=directory("results/emptydrops/{sample}_emptydrops_filtered_matrix"),
@@ -17,5 +18,5 @@ rule emptydrops:
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
     shell:
         """
-        Rscript workflow/scripts/emptydrops.R  {input} {output.seurat} {output.matrixdir} {output.markers}
+        Rscript {input.script}  {input.data} {output.seurat} {output.matrixdir} {output.markers}
         """
