@@ -5,11 +5,13 @@ def input_function(wildcards):
 
 rule emptydrops:
     input:
-        input_function
+        data=input_function,
+        script="workflow/scripts/emptydrops.R"
     output:
         seurat="results/emptydrops/filtered_seurat_emptydrops_{sample}.rds",
         matrixdir=directory("results/emptydrops/{sample}_emptydrops_filtered_matrix"),
-        markers="results/emptydrops/filtered_seurat_emptydrops_{sample}_markergenes.csv"
+        nclusters="results/emptydrops/filtered_seurat_emptydrops_{sample}_nclusters.txt",
+        cluster_ids="results/emptydrops/filtered_seurat_emptydrops_{sample}_cluster_ids.txt"
     conda:
         "../envs/emptydrops.yml"
     resources:
@@ -17,5 +19,5 @@ rule emptydrops:
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
     shell:
         """
-        Rscript workflow/scripts/emptydrops.R  {input} {output.seurat} {output.matrixdir} {output.markers}
+        Rscript {input.script} {input.data} {output.seurat} {output.matrixdir} {output.nclusters} {output.cluster_ids}
         """
