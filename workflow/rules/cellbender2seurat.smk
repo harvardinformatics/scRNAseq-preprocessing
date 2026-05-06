@@ -3,9 +3,9 @@ rule cellbender2seurat:
         data="results/cellbender/cellbender_{sample}_filtered.h5",
         script="workflow/scripts/cellbender2seurat.R"
     output:
-         rds="results/cellbender/seurat_cellbender_fromraw_{sample}.rds",
-         nclusters="results/cellbender/seurat_cellbender_fromraw_{sample}_nclusters.txt",
-         cluster_ids="results/cellbender/seurat_cellbender_fromraw_{sample}_cluster_ids.txt"
+         rds="results/cellbender_fromraw/seurat_cellbender_fromraw_{sample}.rds",
+         nclusters="results/cellbender_fromraw/seurat_cellbender_fromraw_{sample}_nclusters.txt",
+         cluster_ids="results/cellbender_fromraw/seurat_cellbender_fromraw_{sample}_cluster_ids.txt"
     conda:
         "../envs/tenx2seuratrds.yml"
     resources:

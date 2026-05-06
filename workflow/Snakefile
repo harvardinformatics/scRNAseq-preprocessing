@@ -22,9 +22,10 @@ rule all:
         expand("results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + "_markergenes.csv",sample=SAMPLES),
         expand("results/emptydrops/filtered_seurat_emptydrops_{sample}_markergenes.csv",sample=SAMPLES),  
         expand("results/soupx/seurat_soupx_{empty_method}_" + "{sample}" + "_markergenes.csv",sample=SAMPLES,empty_method=EMPTYDROP_METHODS),
-        expand("results/cellbender/seurat_cellbender_fromraw_{sample}_markergenes.csv",sample=SAMPLES),
+        expand("results/cellbender_fromraw/seurat_cellbender_fromraw_{sample}_markergenes.csv",sample=SAMPLES),
         expand("results/{doublet_method}/seurat_{doublet_method}_soupx_{empty_method}_{sample}_markergenes.csv",sample=SAMPLES,doublet_method=DOUBLET_METHODS,empty_method=EMPTYDROP_METHODS),
-        expand("results/posthocfilter/seurat_posthocfilt_{posthoc_method}_{doublet_method}_cellbender_fromraw_{sample}_markergenes.csv",sample=SAMPLES,posthoc_method=POSTHOC_METHODS,doublet_method=DOUBLET_METHODS,empty_method=EMPTYDROP_METHODS),
+        expand("results/{doublet_method}/seurat_{doublet_method}_cellbender_fromraw_{sample}_markergenes.csv",sample=SAMPLES,doublet_method=DOUBLET_METHODS),
+        expand("results/posthocfilter/seurat_posthocfilt_{posthoc_method}_{doublet_method}_cellbender_fromraw_{sample}_markergenes.csv",sample=SAMPLES,posthoc_method=POSTHOC_METHODS,doublet_method=DOUBLET_METHODS),
         expand("results/posthocfilter/seurat_posthocfilt_{posthoc_method}_{doublet_method}_soupx_{empty_method}_{sample}_markergenes.csv",sample=SAMPLES,posthoc_method=POSTHOC_METHODS,doublet_method=DOUBLET_METHODS,empty_method=EMPTYDROP_METHODS)
 
 include: "rules/tenx2seuratrds.smk"

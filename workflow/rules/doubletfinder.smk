@@ -9,6 +9,29 @@ rule doubletfinder:
         cluster_ids="results/doubletfinder/seurat_doubletfinder_{decon_method}_{empty_method}_{sample}_cluster_ids.txt"
     conda:
         "../envs/doubletfinder.yml"
+    wildcard_constraints:
+        decon_method="soupx",
+        empty_method="tenx|emptydrops"
+    resources:
+        mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
+        runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
+    shell:
+        """
+        Rscript {input.script} {input.data} {output.rds} {output.nclusters} {output.cluster_ids}
+        """
+
+
+rule doubletfinder_cellbender:
+    input:
+        install_validation="results/doubletfinder_installed.txt",
+        data="results/cellbender_fromraw/seurat_cellbender_fromraw_{sample}.rds",
+        script="workflow/scripts/doubletfinder.R"
+    output:
+        rds="results/doubletfinder/seurat_doubletfinder_cellbender_fromraw_{sample}.rds",
+        nclusters="results/doubletfinder/seurat_doubletfinder_cellbender_fromraw_{sample}_nclusters.txt",
+        cluster_ids="results/doubletfinder/seurat_doubletfinder_cellbender_fromraw_{sample}_cluster_ids.txt"
+    conda:
+        "../envs/doubletfinder.yml"
     resources:
         mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))

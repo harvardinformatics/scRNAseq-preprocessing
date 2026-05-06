@@ -9,6 +9,36 @@ rule posthocfilter_threshold:
         cluster_ids="results/posthocfilter/seurat_posthocfilt_threshold_{doublet_method}_{decon_method}_{empty_method}_{sample}_cluster_ids.txt"
     conda:
         "../envs/posthocfilter.yml"
+    wildcard_constraints:
+        doublet_method="doubletfinder|scdblfinder",
+        decon_method="soupx",
+        empty_method="tenx|emptydrops"
+    resources:
+        mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
+        runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
+    params:
+        min_numfeatures = config["min_nfeature"],
+        min_umicount = config["min_ncount"],
+        max_mtdna_pcent = config["max_mtdna"]
+    shell:
+        """
+        Rscript {input.script}  {input.data} {output.rds} \
+        {params.min_numfeatures} {params.min_umicount} {params.max_mtdna_pcent} {output.nclusters} {output.cluster_ids}
+        """
+
+
+rule posthocfilter_threshold_cellbender:
+    input:
+        data="results/{doublet_method}/seurat_{doublet_method}_cellbender_fromraw_{sample}.rds",
+        script="workflow/scripts/posthocfilter_threshold.R"
+    output:
+        rds="results/posthocfilter/seurat_posthocfilt_threshold_{doublet_method}_cellbender_fromraw_{sample}.rds",
+        nclusters="results/posthocfilter/seurat_posthocfilt_threshold_{doublet_method}_cellbender_fromraw_{sample}_nclusters.txt",
+        cluster_ids="results/posthocfilter/seurat_posthocfilt_threshold_{doublet_method}_cellbender_fromraw_{sample}_cluster_ids.txt"
+    conda:
+        "../envs/posthocfilter.yml"
+    wildcard_constraints:
+        doublet_method="doubletfinder|scdblfinder"
     resources:
         mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
