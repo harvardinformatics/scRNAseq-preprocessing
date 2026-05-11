@@ -7,6 +7,7 @@ dependencies:
   - python=3.9  
   - r-base
   - r-seurat
+  - bioconductor-bluster
   - pip          
   - pip:       
       - cellbender

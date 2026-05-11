@@ -1,5 +1,6 @@
 use-singularity: True
 singularity-args: "\"--nv\""
+retries: 2
 
 set-threads:
     tenx2seuratrds: 1

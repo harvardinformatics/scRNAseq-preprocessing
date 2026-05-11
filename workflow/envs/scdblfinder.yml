@@ -10,3 +10,4 @@ dependencies:
  - r-seurat
  - bioconductor-scdblfinder
  - bioconductor-glmgampoi
+ - bioconductor-bluster

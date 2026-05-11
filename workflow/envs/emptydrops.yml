@@ -11,5 +11,6 @@ dependencies:
  - bioconductor-dropletutils
  - bioconductor-scater
  - bioconductor-glmgampoi
+ - bioconductor-bluster
  - r-matrix
  - r-r.utils
