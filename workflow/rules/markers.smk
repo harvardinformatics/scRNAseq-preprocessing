@@ -38,7 +38,7 @@ rule find_markers:
         rds="results/{prefix}.rds",
         script="workflow/scripts/find_markers.R"
     output:
-        "results/{prefix}_markergenes_cluster{cluster}.csv"
+        temp("results/{prefix}_markergenes_cluster{cluster}.csv")
     conda:
         "../envs/tenx2seuratrds.yml"
     resources:
