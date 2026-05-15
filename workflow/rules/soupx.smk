@@ -17,8 +17,8 @@ rule soupx:
         script="workflow/scripts/soupx.R"
     output:
         rds="results/soupx/seurat_soupx_tenx_" + "{sample}" + ".rds",
-        nclusters="results/soupx/seurat_soupx_tenx_" + "{sample}" + "_nclusters.txt",
-        cluster_ids="results/soupx/seurat_soupx_tenx_" + "{sample}" + "_cluster_ids.txt"
+        nclusters=temp("results/soupx/seurat_soupx_tenx_" + "{sample}" + "_nclusters.txt"),
+        cluster_ids=temp("results/soupx/seurat_soupx_tenx_" + "{sample}" + "_cluster_ids.txt")
     conda:
         "../envs/soupx.yml"
     resources:

@@ -9,4 +9,5 @@ dependencies:
  - r-tidyverse  
  - r-seurat
  - bioconductor-glmgampoi
+ - bioconductor-bluster
  - r-soupx
