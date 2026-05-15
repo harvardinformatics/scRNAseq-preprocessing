@@ -10,8 +10,8 @@ rule emptydrops:
     output:
         seurat="results/emptydrops/filtered_seurat_emptydrops_{sample}.rds",
         matrixdir=directory("results/emptydrops/{sample}_emptydrops_filtered_matrix"),
-        nclusters="results/emptydrops/filtered_seurat_emptydrops_{sample}_nclusters.txt",
-        cluster_ids="results/emptydrops/filtered_seurat_emptydrops_{sample}_cluster_ids.txt"
+        nclusters=temp("results/emptydrops/filtered_seurat_emptydrops_{sample}_nclusters.txt"),
+        cluster_ids=temp("results/emptydrops/filtered_seurat_emptydrops_{sample}_cluster_ids.txt")
     conda:
         "../envs/emptydrops.yml"
     resources:

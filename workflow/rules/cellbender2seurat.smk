@@ -4,8 +4,8 @@ rule cellbender2seurat:
         script="workflow/scripts/cellbender2seurat.R"
     output:
          rds="results/cellbender_fromraw/seurat_cellbender_fromraw_{sample}.rds",
-         nclusters="results/cellbender_fromraw/seurat_cellbender_fromraw_{sample}_nclusters.txt",
-         cluster_ids="results/cellbender_fromraw/seurat_cellbender_fromraw_{sample}_cluster_ids.txt"
+         nclusters=temp("results/cellbender_fromraw/seurat_cellbender_fromraw_{sample}_nclusters.txt"),
+         cluster_ids=temp("results/cellbender_fromraw/seurat_cellbender_fromraw_{sample}_cluster_ids.txt")
     conda:
         "../envs/tenx2seuratrds.yml"
     resources:

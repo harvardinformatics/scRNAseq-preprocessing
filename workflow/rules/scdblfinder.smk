@@ -4,8 +4,8 @@ rule scdblfinder:
         script="workflow/scripts/scdblfinder.R"
     output:
         rds="results/scdblfinder/seurat_scdblfinder_{decon_method}_{empty_method}_{sample}.rds",
-        nclusters="results/scdblfinder/seurat_scdblfinder_{decon_method}_{empty_method}_{sample}_nclusters.txt",
-        cluster_ids="results/scdblfinder/seurat_scdblfinder_{decon_method}_{empty_method}_{sample}_cluster_ids.txt"
+        nclusters=temp("results/scdblfinder/seurat_scdblfinder_{decon_method}_{empty_method}_{sample}_nclusters.txt"),
+        cluster_ids=temp("results/scdblfinder/seurat_scdblfinder_{decon_method}_{empty_method}_{sample}_cluster_ids.txt")
     conda:
         "../envs/scdblfinder.yml"
     wildcard_constraints:
@@ -26,8 +26,8 @@ rule scdblfinder_cellbender:
         script="workflow/scripts/scdblfinder.R"
     output:
         rds="results/scdblfinder/seurat_scdblfinder_cellbender_fromraw_{sample}.rds",
-        nclusters="results/scdblfinder/seurat_scdblfinder_cellbender_fromraw_{sample}_nclusters.txt",
-        cluster_ids="results/scdblfinder/seurat_scdblfinder_cellbender_fromraw_{sample}_cluster_ids.txt"
+        nclusters=temp("results/scdblfinder/seurat_scdblfinder_cellbender_fromraw_{sample}_nclusters.txt"),
+        cluster_ids=temp("results/scdblfinder/seurat_scdblfinder_cellbender_fromraw_{sample}_cluster_ids.txt")
     conda:
         "../envs/scdblfinder.yml"
     resources:

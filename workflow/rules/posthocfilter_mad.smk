@@ -5,8 +5,8 @@ rule posthocfilter_mad:
 
     output:
         rds="results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds",
-        nclusters="results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_{decon_method}_{empty_method}_{sample}_nclusters.txt",
-        cluster_ids="results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_{decon_method}_{empty_method}_{sample}_cluster_ids.txt"
+        nclusters=temp("results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_{decon_method}_{empty_method}_{sample}_nclusters.txt"),
+        cluster_ids=temp("results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_{decon_method}_{empty_method}_{sample}_cluster_ids.txt")
     conda:
         "../envs/posthocfilter.yml"
     wildcard_constraints:
@@ -28,8 +28,8 @@ rule posthocfilter_mad_cellbender:
         script="workflow/scripts/posthocfilter_mad.R"
     output:
         rds="results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_cellbender_fromraw_{sample}.rds",
-        nclusters="results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_cellbender_fromraw_{sample}_nclusters.txt",
-        cluster_ids="results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_cellbender_fromraw_{sample}_cluster_ids.txt"
+        nclusters=temp("results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_cellbender_fromraw_{sample}_nclusters.txt"),
+        cluster_ids=temp("results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_cellbender_fromraw_{sample}_cluster_ids.txt")
     conda:
         "../envs/posthocfilter.yml"
     wildcard_constraints:

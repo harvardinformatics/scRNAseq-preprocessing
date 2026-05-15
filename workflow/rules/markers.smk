@@ -10,7 +10,7 @@ checkpoint marker_manifest:
     input:
         cluster_ids="results/{prefix}_cluster_ids.txt"
     output:
-        manifest=directory("results/{prefix}_marker_manifest")
+        manifest=temp(directory("results/{prefix}_marker_manifest"))
     run:
         manifest_dir = Path(output.manifest)
         manifest_dir.mkdir(parents=True, exist_ok=True)
@@ -60,4 +60,9 @@ rule combine_markers:
         mem_mb=lambda wildcards, attempt: int(4000 * (2 ** (attempt - 1))),
         runtime=lambda wildcards, attempt: int(60 * (2 ** (attempt - 1)))
     shell:
-        "Rscript {input.script} {output} {input.markers}"
+        """
+        Rscript {input.script} {output} {input.markers}
+        rm -f results/{wildcards.prefix}_cluster_ids.txt
+        rm -f results/{wildcards.prefix}_nclusters.txt
+        rm -rf results/{wildcards.prefix}_marker_manifest
+        """

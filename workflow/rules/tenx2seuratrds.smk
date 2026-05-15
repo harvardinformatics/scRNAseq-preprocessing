@@ -10,8 +10,8 @@ rule tenx2seuratrds:
         script="workflow/scripts/tenx2seuratrds.R"
     output:
         rds="results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + ".rds",
-        nclusters="results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + "_nclusters.txt",
-        cluster_ids="results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + "_cluster_ids.txt"
+        nclusters=temp("results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + "_nclusters.txt"),
+        cluster_ids=temp("results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + "_cluster_ids.txt")
     conda:
         "../envs/tenx2seuratrds.yml"
     resources:

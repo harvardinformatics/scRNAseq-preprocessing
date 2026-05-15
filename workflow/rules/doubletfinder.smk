@@ -5,8 +5,8 @@ rule doubletfinder:
         script="workflow/scripts/doubletfinder.R"
     output:
         rds="results/doubletfinder/seurat_doubletfinder_{decon_method}_{empty_method}_{sample}.rds",
-        nclusters="results/doubletfinder/seurat_doubletfinder_{decon_method}_{empty_method}_{sample}_nclusters.txt",
-        cluster_ids="results/doubletfinder/seurat_doubletfinder_{decon_method}_{empty_method}_{sample}_cluster_ids.txt"
+        nclusters=temp("results/doubletfinder/seurat_doubletfinder_{decon_method}_{empty_method}_{sample}_nclusters.txt"),
+        cluster_ids=temp("results/doubletfinder/seurat_doubletfinder_{decon_method}_{empty_method}_{sample}_cluster_ids.txt")
     conda:
         "../envs/doubletfinder.yml"
     wildcard_constraints:
@@ -28,8 +28,8 @@ rule doubletfinder_cellbender:
         script="workflow/scripts/doubletfinder.R"
     output:
         rds="results/doubletfinder/seurat_doubletfinder_cellbender_fromraw_{sample}.rds",
-        nclusters="results/doubletfinder/seurat_doubletfinder_cellbender_fromraw_{sample}_nclusters.txt",
-        cluster_ids="results/doubletfinder/seurat_doubletfinder_cellbender_fromraw_{sample}_cluster_ids.txt"
+        nclusters=temp("results/doubletfinder/seurat_doubletfinder_cellbender_fromraw_{sample}_nclusters.txt"),
+        cluster_ids=temp("results/doubletfinder/seurat_doubletfinder_cellbender_fromraw_{sample}_cluster_ids.txt")
     conda:
         "../envs/doubletfinder.yml"
     resources:
