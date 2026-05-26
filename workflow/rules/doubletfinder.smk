@@ -2,7 +2,8 @@ rule doubletfinder:
     input:
         install_validation="results/doubletfinder_installed.txt",
         data="results/{decon_method}/seurat_{decon_method}_{empty_method}_{sample}.rds",
-        script="workflow/scripts/doubletfinder.R"
+        script="workflow/scripts/doubletfinder.R",
+        helper="workflow/scripts/silhouette_utils.R"
     output:
         rds="results/doubletfinder/seurat_doubletfinder_{decon_method}_{empty_method}_{sample}.rds",
         nclusters=temp("results/doubletfinder/seurat_doubletfinder_{decon_method}_{empty_method}_{sample}_nclusters.txt"),
@@ -25,7 +26,8 @@ rule doubletfinder_cellbender:
     input:
         install_validation="results/doubletfinder_installed.txt",
         data="results/cellbender_fromraw/seurat_cellbender_fromraw_{sample}.rds",
-        script="workflow/scripts/doubletfinder.R"
+        script="workflow/scripts/doubletfinder.R",
+        helper="workflow/scripts/silhouette_utils.R"
     output:
         rds="results/doubletfinder/seurat_doubletfinder_cellbender_fromraw_{sample}.rds",
         nclusters=temp("results/doubletfinder/seurat_doubletfinder_cellbender_fromraw_{sample}_nclusters.txt"),

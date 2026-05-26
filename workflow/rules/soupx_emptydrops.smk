@@ -9,7 +9,8 @@ rule soupx_emptydrops:
         raw=input_function_raw,
         filtered = "results/emptydrops/{sample}_emptydrops_filtered_matrix",
         seurat_base = "results/emptydrops/filtered_seurat_emptydrops_{sample}.rds",
-        script="workflow/scripts/soupx.R"
+        script="workflow/scripts/soupx.R",
+        helper="workflow/scripts/silhouette_utils.R"
     output:
         rds="results/soupx/seurat_soupx_emptydrops_" + "{sample}" + ".rds",
         nclusters=temp("results/soupx/seurat_soupx_emptydrops_" + "{sample}" + "_nclusters.txt"),

@@ -1,7 +1,8 @@
 rule posthocfilter_mad:
     input:
         data="results/{doublet_method}/seurat_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds",
-        script="workflow/scripts/posthocfilter_mad.R"
+        script="workflow/scripts/posthocfilter_mad.R",
+        helper="workflow/scripts/silhouette_utils.R"
 
     output:
         rds="results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds",

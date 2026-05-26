@@ -3,7 +3,12 @@ add_silhouette_to_metadata <- function(
     cluster_col = "seurat_clusters",
     reduction = "pca",
     dims = 1:30,
-    sil_col_name = "silhouette_width"
+    sil_col_name = "silhouette_width",
+    purity_col_name = "neighborhood_purity",
+    purity_k = 50,
+    purity_weighted = TRUE,
+    purity_BNPARAM = NULL,
+    purity_BPPARAM = NULL
 ) {
   if (!cluster_col %in% colnames(seurat_obj@meta.data)) {
     stop(paste("Column", cluster_col, "not found in meta.data"))
@@ -21,9 +26,11 @@ add_silhouette_to_metadata <- function(
   clust <- seurat_obj@meta.data[[cluster_col]]
   valid_cells <- !is.na(clust)
   sil_values <- rep(NA_real_, length(clust))
+  purity_values <- rep(NA_real_, length(clust))
 
   if (sum(valid_cells) < 2 || length(unique(clust[valid_cells])) < 2) {
     seurat_obj@meta.data[[sil_col_name]] <- sil_values
+    seurat_obj@meta.data[[purity_col_name]] <- purity_values
     return(seurat_obj)
   }
 
@@ -31,13 +38,27 @@ add_silhouette_to_metadata <- function(
     "Calculating approximate silhouette widths for %d cells with bluster::approxSilhouette",
     sum(valid_cells)
   ))
-
   sil <- bluster::approxSilhouette(
     emb[valid_cells, dims, drop = FALSE],
     clust[valid_cells]
   )
   sil_values[valid_cells] <- as.numeric(sil$width)
   seurat_obj@meta.data[[sil_col_name]] <- sil_values
+
+  message(sprintf(
+    "Calculating neighborhood purities for %d cells with bluster::neighborPurity",
+    sum(valid_cells)
+  ))
+  purity <- bluster::neighborPurity(
+    emb[valid_cells, dims, drop = FALSE],
+    clust[valid_cells],
+    k = purity_k,
+    weighted = purity_weighted,
+    BNPARAM = purity_BNPARAM,
+    BPPARAM = purity_BPPARAM
+  )
+  purity_values[valid_cells] <- as.numeric(purity$purity)
+  seurat_obj@meta.data[[purity_col_name]] <- purity_values
 
   seurat_obj
 }
