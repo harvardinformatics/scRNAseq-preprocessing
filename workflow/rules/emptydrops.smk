@@ -6,7 +6,8 @@ def input_function(wildcards):
 rule emptydrops:
     input:
         data=input_function,
-        script="workflow/scripts/emptydrops.R"
+        script="workflow/scripts/emptydrops.R",
+        helper="workflow/scripts/silhouette_utils.R"
     output:
         seurat="results/emptydrops/filtered_seurat_emptydrops_{sample}.rds",
         matrixdir=directory("results/emptydrops/{sample}_emptydrops_filtered_matrix"),

@@ -1,7 +1,8 @@
 rule cellbender2seurat:
     input:
         data="results/cellbender/cellbender_{sample}_filtered.h5",
-        script="workflow/scripts/cellbender2seurat.R"
+        script="workflow/scripts/cellbender2seurat.R",
+        helper="workflow/scripts/silhouette_utils.R"
     output:
          rds="results/cellbender_fromraw/seurat_cellbender_fromraw_{sample}.rds",
          nclusters=temp("results/cellbender_fromraw/seurat_cellbender_fromraw_{sample}_nclusters.txt"),

@@ -1,7 +1,8 @@
 rule scdblfinder:
     input:
         data="results/{decon_method}/seurat_{decon_method}_{empty_method}_{sample}.rds",
-        script="workflow/scripts/scdblfinder.R"
+        script="workflow/scripts/scdblfinder.R",
+        helper="workflow/scripts/silhouette_utils.R"
     output:
         rds="results/scdblfinder/seurat_scdblfinder_{decon_method}_{empty_method}_{sample}.rds",
         nclusters=temp("results/scdblfinder/seurat_scdblfinder_{decon_method}_{empty_method}_{sample}_nclusters.txt"),
@@ -23,7 +24,8 @@ rule scdblfinder:
 rule scdblfinder_cellbender:
     input:
         data="results/cellbender_fromraw/seurat_cellbender_fromraw_{sample}.rds",
-        script="workflow/scripts/scdblfinder.R"
+        script="workflow/scripts/scdblfinder.R",
+        helper="workflow/scripts/silhouette_utils.R"
     output:
         rds="results/scdblfinder/seurat_scdblfinder_cellbender_fromraw_{sample}.rds",
         nclusters=temp("results/scdblfinder/seurat_scdblfinder_cellbender_fromraw_{sample}_nclusters.txt"),

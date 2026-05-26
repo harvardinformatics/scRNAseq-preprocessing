@@ -14,7 +14,8 @@ rule soupx:
         raw=input_function_raw,
         filtered =  input_function_filtered,
         seurat_base =  "results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + ".rds",
-        script="workflow/scripts/soupx.R"
+        script="workflow/scripts/soupx.R",
+        helper="workflow/scripts/silhouette_utils.R"
     output:
         rds="results/soupx/seurat_soupx_tenx_" + "{sample}" + ".rds",
         nclusters=temp("results/soupx/seurat_soupx_tenx_" + "{sample}" + "_nclusters.txt"),

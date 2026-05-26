@@ -7,7 +7,8 @@ def input_function(wildcards):
 rule tenx2seuratrds:
     input:
         data=input_function,
-        script="workflow/scripts/tenx2seuratrds.R"
+        script="workflow/scripts/tenx2seuratrds.R",
+        helper="workflow/scripts/silhouette_utils.R"
     output:
         rds="results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + ".rds",
         nclusters=temp("results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + "_nclusters.txt"),
