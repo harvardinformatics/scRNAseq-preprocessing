@@ -12,6 +12,7 @@ set -euo pipefail
 
 usage() {
     echo "Usage: $0 [--conda-prefix PATH] [additional snakemake args...]"
+    echo "Set TEST_WORKFLOW_SNAKEMAKE_ARGS to append whitespace-delimited Snakemake args before command-line extras."
 }
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -61,6 +62,12 @@ if [[ -n "${snakemake_conda_prefix}" ]]; then
     conda_prefix_args=(--conda-prefix "${snakemake_conda_prefix}")
 fi
 
+env_snakemake_args=()
+if [[ -n "${TEST_WORKFLOW_SNAKEMAKE_ARGS:-}" ]]; then
+    # Intended for simple Snakemake CLI tokens, such as --set-resources entries.
+    read -r -a env_snakemake_args <<< "${TEST_WORKFLOW_SNAKEMAKE_ARGS}"
+fi
+
 snakemake --unlock "${common_args[@]}" "${conda_prefix_args[@]}"
 rm -rf testdata/results
 
@@ -71,4 +78,5 @@ snakemake \
     --retries 2 \
     --jobs 200 \
     --latency-wait 600 \
+    "${env_snakemake_args[@]}" \
     "${extra_snakemake_args[@]}"
