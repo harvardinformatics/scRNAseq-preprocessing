@@ -1,0 +1,45 @@
+name: full workflow
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: full-workflow-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-workflow:
+    name: pytest --run-workflow
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      SNAKEMAKE_CONDA_FRONTEND: mamba
+      GITHUB_PAT: ${{ github.token }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create test environment
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+          cache-downloads: true
+
+      - name: Cache Snakemake rule environments
+        uses: actions/cache@v4
+        with:
+          path: .snakemake/conda
+          key: snakemake-conda-full-${{ runner.os }}-${{ hashFiles('workflow/envs/*.yml') }}
+          restore-keys: |
+            snakemake-conda-full-${{ runner.os }}-
+            snakemake-conda-${{ runner.os }}-
+
+      - name: Run full test-data workflow
+        run: pytest tests --run-workflow -q
