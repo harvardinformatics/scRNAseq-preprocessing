@@ -21,6 +21,43 @@ jobs:
     env:
       SNAKEMAKE_CONDA_FRONTEND: mamba
       GITHUB_PAT: ${{ github.token }}
+      TEST_WORKFLOW_SNAKEMAKE_ARGS: >-
+        --resources mem_mb=8192
+        --set-resources
+        cellbender:mem_mb=3072
+        cellbender:runtime=30
+        tenx2seuratrds:mem_mb=2048
+        tenx2seuratrds:runtime=10
+        emptydrops:mem_mb=2048
+        emptydrops:runtime=10
+        soupx:mem_mb=2048
+        soupx:runtime=10
+        soupx_emptydrops:mem_mb=2048
+        soupx_emptydrops:runtime=10
+        cellbender2seurat:mem_mb=2048
+        cellbender2seurat:runtime=10
+        doubletfinder:mem_mb=2048
+        doubletfinder:runtime=10
+        doubletfinder_cellbender:mem_mb=2048
+        doubletfinder_cellbender:runtime=10
+        scdblfinder:mem_mb=3072
+        scdblfinder:runtime=10
+        scdblfinder_cellbender:mem_mb=3072
+        scdblfinder_cellbender:runtime=10
+        posthocfilter_mad:mem_mb=3072
+        posthocfilter_mad:runtime=10
+        posthocfilter_mad_cellbender:mem_mb=3072
+        posthocfilter_mad_cellbender:runtime=10
+        posthocfilter_threshold:mem_mb=2048
+        posthocfilter_threshold:runtime=10
+        posthocfilter_threshold_cellbender:mem_mb=2048
+        posthocfilter_threshold_cellbender:runtime=10
+        marker_manifest:mem_mb=1024
+        marker_manifest:runtime=5
+        find_markers:mem_mb=2048
+        find_markers:runtime=5
+        combine_markers:mem_mb=1024
+        combine_markers:runtime=5
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
