@@ -1,0 +1,127 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_conda_validation:
+        description: "Create workflow conda envs and run package import checks"
+        required: false
+        default: false
+        type: boolean
+      run_container_validation:
+        description: "Pull workflow containers"
+        required: false
+        default: false
+        type: boolean
+      run_doubletfinder_install:
+        description: "Run the networked DoubletFinder GitHub install rule"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      SNAKEMAKE_CONDA_FRONTEND: mamba
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create test environment
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+          cache-downloads: true
+
+      - name: Cache Snakemake rule environments
+        uses: actions/cache@v4
+        with:
+          path: .snakemake/conda
+          key: snakemake-conda-${{ runner.os }}-${{ hashFiles('workflow/envs/*.yml') }}
+          restore-keys: |
+            snakemake-conda-${{ runner.os }}-
+
+      - name: Run tests
+        run: pytest tests -q
+
+  conda-validation:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_conda_validation
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env_name:
+          - cellbender.yml
+          - doubletfinder.yml
+          - emptydrops.yml
+          - posthocfilter.yml
+          - scdblfinder.yml
+          - soupx.yml
+          - tenx2seuratrds.yml
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      SNAKEMAKE_CONDA_FRONTEND: mamba
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create test environment
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+          cache-downloads: true
+
+      - name: Run conda validation for ${{ matrix.env_name }}
+        run: pytest tests/test_conda_container_validation.py --run-conda-validation --conda-env-name "${{ matrix.env_name }}" -q
+
+  container-validation:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_container_validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create test environment
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+          cache-downloads: true
+
+      - name: Run container validation
+        run: pytest tests/test_conda_container_validation.py --run-container-validation -q
+
+  doubletfinder-install:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_doubletfinder_install
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      SNAKEMAKE_CONDA_FRONTEND: mamba
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create test environment
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+          cache-downloads: true
+
+      - name: Run DoubletFinder install validation
+        run: pytest tests/test_conda_container_validation.py --run-doubletfinder-install -q
