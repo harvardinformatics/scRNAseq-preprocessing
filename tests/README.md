@@ -57,7 +57,7 @@ The GitHub-hosted full workflow action uses `tests/bin/cellbender` as a test shi
 
 ## Reference outputs
 
-The full workflow test compares regenerated files in `testdata/results/` against reference files under `tests/reference_outputs/`. The compared file list is in `tests/test_reference_output_files.txt`. Seurat `.rds` files are compared at the metadata-table level, marker CSVs are compared by columns and `(cluster, genesymbol)` rows with numeric tolerance, emptyDrops matrix files are compared after gzip decompression, CellBender H5 outputs are compared with `h5diff`, and remaining durable outputs are compared byte-for-byte.
+The full workflow test compares regenerated files in `testdata/results/` against reference files under `tests/reference_outputs/`. The compared file list is in `tests/test_reference_output_files.txt`. Seurat `.rds` files are compared at the metadata-table level, marker CSVs are compared by columns and `(cluster, genesymbol)` rows with numeric tolerance, emptyDrops matrix files are compared after gzip decompression, CellBender H5 outputs are compared with `h5diff`, and remaining durable outputs are compared byte-for-byte. Seurat metadata numeric columns use a strict default tolerance, except `neighborhood_purity`, which allows a small absolute tolerance because it is a derived nearest-neighbor purity metric that can vary slightly across R/Bioconductor/platform builds even when barcode order and `seurat_clusters` match. Override that tolerance with `SEURAT_METADATA_NEIGHBORHOOD_PURITY_TOLERANCE` if needed.
 
 To refresh the reference snapshot after intentionally changing workflow behavior, first run the full test workflow so `testdata/results/` contains the desired outputs, then run:
 
