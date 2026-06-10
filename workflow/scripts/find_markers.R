@@ -9,9 +9,13 @@ library("tools")
 
 options(future.globals.maxSize = 16 * 1024^3)
 
+source("workflow/scripts/silhouette_utils.R")
+WORKFLOW_SEED <- set_workflow_seed()
+
 seurat_obj <- readRDS(rds_input)
 Idents(seurat_obj) <- "seurat_clusters"
 
+set.seed(WORKFLOW_SEED)
 markers <- FindMarkers(seurat_obj, ident.1 = cluster_id)
 markers_tbl <- markers %>%
   as.data.frame() %>%

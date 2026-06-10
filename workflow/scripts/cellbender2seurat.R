@@ -9,6 +9,7 @@ library("scCustomize")
 options(future.globals.maxSize = 16 * 1024^3)
 
 source("workflow/scripts/silhouette_utils.R")
+WORKFLOW_SEED <- set_workflow_seed()
 
 write_cluster_metadata <- function(seurat_obj, nclusters_output, cluster_ids_output) {
   cluster_ids <- levels(Idents(seurat_obj))
@@ -23,11 +24,11 @@ write_cluster_metadata <- function(seurat_obj, nclusters_output, cluster_ids_out
 mat <- Read_CellBender_h5_Mat(cellbender_h5)
 seurat <- CreateSeuratObject(mat)
 seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "(?i)^mt-")
-seurat <- SCTransform(seurat, vars.to.regress = "percent.mt", verbose = FALSE)
-seurat <- RunPCA(seurat, verbose = FALSE)
-seurat <- RunUMAP(seurat, dims = 1:30)
+seurat <- SCTransform(seurat, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat <- RunPCA(seurat, seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat <- RunUMAP(seurat, dims = 1:30, seed.use = WORKFLOW_SEED)
 seurat <- FindNeighbors(seurat, dims = 1:30)
-seurat <- FindClusters(seurat)
+seurat <- FindClusters(seurat, random.seed = WORKFLOW_SEED)
 seurat <- add_silhouette_to_metadata(seurat)
 saveRDS(seurat,file=output)
 write_cluster_metadata(seurat, nclusters_output, cluster_ids_output)

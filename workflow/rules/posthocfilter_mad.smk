@@ -1,13 +1,14 @@
 rule posthocfilter_mad:
     input:
-        data="results/{doublet_method}/seurat_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds",
+        data=f"{RESULTS_DIR}/{{doublet_method}}/seurat_{{doublet_method}}_{{decon_method}}_{{empty_method}}_{{sample}}.rds",
         script="workflow/scripts/posthocfilter_mad.R",
         helper="workflow/scripts/silhouette_utils.R"
-
     output:
-        rds="results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds",
-        nclusters=temp("results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_{decon_method}_{empty_method}_{sample}_nclusters.txt"),
-        cluster_ids=temp("results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_{decon_method}_{empty_method}_{sample}_cluster_ids.txt")
+        rds=f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_mad_{{doublet_method}}_{{decon_method}}_{{empty_method}}_{{sample}}.rds",
+        nclusters=temp(f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_mad_{{doublet_method}}_{{decon_method}}_{{empty_method}}_{{sample}}_nclusters.txt"),
+        cluster_ids=temp(f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_mad_{{doublet_method}}_{{decon_method}}_{{empty_method}}_{{sample}}_cluster_ids.txt")
+    log:
+        f"{RESULTS_DIR}/logs/posthocfilter/posthocfilter_mad_{{doublet_method}}_{{decon_method}}_{{empty_method}}_{{sample}}.log"
     conda:
         "../envs/posthocfilter.yml"
     wildcard_constraints:
@@ -17,20 +18,25 @@ rule posthocfilter_mad:
     resources:
         mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
+    params:
+        seed=WORKFLOW_SEED
     shell:
         """
-        Rscript {input.script} {input.data} {output.rds} {output.nclusters} {output.cluster_ids}
+        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script} {input.data} {output.rds} {output.nclusters} {output.cluster_ids} > {log} 2>&1
         """
 
 
 rule posthocfilter_mad_cellbender:
     input:
-        data="results/{doublet_method}/seurat_{doublet_method}_cellbender_fromraw_{sample}.rds",
-        script="workflow/scripts/posthocfilter_mad.R"
+        data=f"{RESULTS_DIR}/{{doublet_method}}/seurat_{{doublet_method}}_cellbender_fromraw_{{sample}}.rds",
+        script="workflow/scripts/posthocfilter_mad.R",
+        helper="workflow/scripts/silhouette_utils.R"
     output:
-        rds="results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_cellbender_fromraw_{sample}.rds",
-        nclusters=temp("results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_cellbender_fromraw_{sample}_nclusters.txt"),
-        cluster_ids=temp("results/posthocfilter/seurat_posthocfilt_mad_{doublet_method}_cellbender_fromraw_{sample}_cluster_ids.txt")
+        rds=f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_mad_{{doublet_method}}_cellbender_fromraw_{{sample}}.rds",
+        nclusters=temp(f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_mad_{{doublet_method}}_cellbender_fromraw_{{sample}}_nclusters.txt"),
+        cluster_ids=temp(f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_mad_{{doublet_method}}_cellbender_fromraw_{{sample}}_cluster_ids.txt")
+    log:
+        f"{RESULTS_DIR}/logs/posthocfilter/posthocfilter_mad_{{doublet_method}}_cellbender_fromraw_{{sample}}.log"
     conda:
         "../envs/posthocfilter.yml"
     wildcard_constraints:
@@ -38,7 +44,9 @@ rule posthocfilter_mad_cellbender:
     resources:
         mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
+    params:
+        seed=WORKFLOW_SEED
     shell:
         """
-        Rscript {input.script} {input.data} {output.rds} {output.nclusters} {output.cluster_ids}
+        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script} {input.data} {output.rds} {output.nclusters} {output.cluster_ids} > {log} 2>&1
         """

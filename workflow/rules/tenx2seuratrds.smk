@@ -1,23 +1,20 @@
-def input_function(wildcards):
-    tenx_dir = sampleinfo.loc[sampleinfo["sampleid"] == wildcards.sample, "tenx_datadir"].values[0]
-    input_path = os.path.join(tenx_dir, "filtered_feature_bc_matrix")
-    print(f"Input path for sample {wildcards.sample}: {input_path}")
-    return input_path
-
 rule tenx2seuratrds:
     input:
-        data=input_function,
+        data=tenx_filtered_matrix_input,
         script="workflow/scripts/tenx2seuratrds.R",
         helper="workflow/scripts/silhouette_utils.R"
     output:
-        rds="results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + ".rds",
-        nclusters=temp("results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + "_nclusters.txt"),
-        cluster_ids=temp("results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + "_cluster_ids.txt")
+        rds=f"{RESULTS_DIR}/seurat_filtered/filtered_seurat_tenx_{{sample}}.rds",
+        nclusters=temp(f"{RESULTS_DIR}/seurat_filtered/filtered_seurat_tenx_{{sample}}_nclusters.txt"),
+        cluster_ids=temp(f"{RESULTS_DIR}/seurat_filtered/filtered_seurat_tenx_{{sample}}_cluster_ids.txt")
+    log:
+        f"{RESULTS_DIR}/logs/tenx2seuratrds/tenx2seuratrds_{{sample}}.log"
     conda:
         "../envs/tenx2seuratrds.yml"
     resources:
         mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
-        
+    params:
+        seed=WORKFLOW_SEED
     shell:
-        "Rscript {input.script} {input.data} {output.rds} {output.nclusters} {output.cluster_ids}"
+        "SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script} {input.data} {output.rds} {output.nclusters} {output.cluster_ids} > {log} 2>&1"

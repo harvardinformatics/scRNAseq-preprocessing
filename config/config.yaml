@@ -1,6 +1,7 @@
 conda-channel-priority: "strict"
 
 sampleTable: "samplesheet.tsv"
+workflow_seed: 12345
 
 emptydrop_removal_methods: ["tenx","emptydrops"]
 ambient_decon_methods: ["soupx","cellbender_fromraw"]

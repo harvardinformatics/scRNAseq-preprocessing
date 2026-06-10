@@ -2,6 +2,8 @@ channels:
  - conda-forge
  - bioconda
 
+channel_priority: strict
+
 dependencies:
   - r-tidyverse
   - python=3.9  

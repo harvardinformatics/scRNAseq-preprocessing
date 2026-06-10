@@ -4,6 +4,7 @@ seurat_output <- args[2]
 matrix_outdir <- args[3]
 nclusters_output <- args[4]
 cluster_ids_output <- args[5]
+sample_id <- if (length(args) >= 6 && nzchar(args[6])) args[6] else basename(normalizePath(raw, mustWork = FALSE))
 
 library("Seurat")
 library("DropletUtils")
@@ -13,6 +14,7 @@ library("glmGamPoi")
 options(future.globals.maxSize = 16 * 1024^3)
 
 source("workflow/scripts/silhouette_utils.R")
+WORKFLOW_SEED <- set_workflow_seed()
 
 write_cluster_metadata <- function(seurat_obj, nclusters_output, cluster_ids_output) {
   cluster_ids <- levels(Idents(seurat_obj))
@@ -32,12 +34,14 @@ library("R.utils")
 droputil_rawdata <-read10xCounts(raw)
 colnames(droputil_rawdata) <- droputil_rawdata$Barcode
 rownames(droputil_rawdata) <- make.unique(rowData(droputil_rawdata)$Symbol)
+set.seed(WORKFLOW_SEED)
 dropletutils_out <-emptyDrops(counts(droputil_rawdata))
 is.cell <-!is.na(dropletutils_out$FDR) & dropletutils_out$FDR<0.01
 cell_barcodes <- colnames(droputil_rawdata)[which(is.cell)]
 droputil_filtered <- droputil_rawdata[,is.cell]
 droputil_filtered <- logNormCounts(droputil_filtered)
 seurat_droputil_filtered <- as.Seurat(droputil_filtered, counts = "counts",data="logcounts")
+seurat_droputil_filtered$Sample <- sample_id
 cm <- counts(droputil_filtered)
 if (!inherits(cm, "dgCMatrix")) {
     cm <- as(cm, "dgCMatrix")
@@ -48,11 +52,11 @@ rm(droputil_rawdata, dropletutils_out, droputil_filtered, is.cell, cell_barcodes
 gc()
 seurat_droputil_filtered <- RenameAssays(seurat_droputil_filtered,originalexp="RNA")
 seurat_droputil_filtered[["percent.mt"]] <- PercentageFeatureSet(seurat_droputil_filtered, pattern = "(?i)^mt-")
-seurat_droputil_filtered <- SCTransform(seurat_droputil_filtered, vars.to.regress = "percent.mt", verbose = FALSE)
-seurat_droputil_filtered <- RunPCA(seurat_droputil_filtered, verbose = FALSE)
-seurat_droputil_filtered <- RunUMAP(seurat_droputil_filtered, dims = 1:30)
+seurat_droputil_filtered <- SCTransform(seurat_droputil_filtered, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat_droputil_filtered <- RunPCA(seurat_droputil_filtered, seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat_droputil_filtered <- RunUMAP(seurat_droputil_filtered, dims = 1:30, seed.use = WORKFLOW_SEED)
 seurat_droputil_filtered <- FindNeighbors(seurat_droputil_filtered, dims = 1:30)
-seurat_droputil_filtered <- FindClusters(seurat_droputil_filtered)
+seurat_droputil_filtered <- FindClusters(seurat_droputil_filtered, random.seed = WORKFLOW_SEED)
 seurat_droputil_filtered <- add_silhouette_to_metadata(seurat_droputil_filtered)
 saveRDS(seurat_droputil_filtered,file=seurat_output)
 write_cluster_metadata(seurat_droputil_filtered, nclusters_output, cluster_ids_output)
