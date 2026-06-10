@@ -52,6 +52,8 @@ The full-run test calls `tests/run_test_workflow.sh`, which uses `testdata/sampl
 
 For testing, omit `--snakemake-conda-prefix` so Snakemake uses its default `.snakemake/conda` location under the repository root. The runner assumes that the current environment already provides `snakemake` on `PATH`.
 
+The GitHub-hosted full workflow action uses `tests/bin/cellbender` as a test shim for the CellBender rule because hosted runners do not provide the GPU-enabled CellBender container runtime used on the cluster. The shim copies the reference CellBender H5 outputs into the expected rule outputs, while the rest of the workflow runs normally and is still compared against the reference snapshot. Cluster/HPC runs of `pytest tests --run-workflow` do not use this shim unless `tests/bin` is explicitly added to `PATH`.
+
 
 ## Reference outputs
 

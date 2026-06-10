@@ -27,6 +27,7 @@ jobs:
         --executor local
         --cores 2
       TEST_WORKFLOW_JOBS: "2"
+      TEST_WORKFLOW_FAKE_CELLBENDER_SOURCE: ${{ github.workspace }}/tests/reference_outputs/testdata/results/cellbender
       TEST_WORKFLOW_SNAKEMAKE_ARGS: >-
         --resources mem_mb=8192
         --set-resources
@@ -67,6 +68,9 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Add test command shims to PATH
+        run: echo "${GITHUB_WORKSPACE}/tests/bin" >> "${GITHUB_PATH}"
 
       - name: Create test environment
         uses: mamba-org/setup-micromamba@v2
