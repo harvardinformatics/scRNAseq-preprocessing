@@ -158,6 +158,15 @@ def test_conda_env_solves_and_key_packages_import(tmp_path, pytestconfig, env_na
         assert imports.returncode == 0, combined_output(imports)
 
 
+def test_doubletfinder_github_action_exports_token_for_remotes():
+    root = repo_root()
+    workflow = read_yaml(root / ".github/workflows/tests.yml")
+    job = workflow["jobs"]["doubletfinder-install"]
+
+    assert job.get("permissions", {}).get("contents") == "read"
+    assert job.get("env", {}).get("GITHUB_PAT") == "${{ github.token }}"
+
+
 def test_cellbender_container_can_be_pulled(tmp_path, pytestconfig):
     if not pytestconfig.getoption("--run-container-validation"):
         pytest.skip("use --run-container-validation to pull workflow containers")
