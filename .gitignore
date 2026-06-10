@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.cache/
+Rplots.pdf
+logs/
+.snakemake/
+.jupyter/
+.vscode/
+.ipython/
+scratch/
+*err
+*out
+results/
+testdata/results/
+# Keep golden test outputs trackable even though results/ is ignored.
+!tests/reference_outputs/
+!tests/reference_outputs/**
+!tests/reference_outputs/testdata/
+!tests/reference_outputs/testdata/results/
+!tests/reference_outputs/testdata/results/**

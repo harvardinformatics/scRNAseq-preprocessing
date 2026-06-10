@@ -1,13 +1,14 @@
 rule posthocfilter_threshold:
     input:
-        data="results/{doublet_method}/seurat_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds",
+        data=f"{RESULTS_DIR}/{{doublet_method}}/seurat_{{doublet_method}}_{{decon_method}}_{{empty_method}}_{{sample}}.rds",
         script="workflow/scripts/posthocfilter_threshold.R",
         helper="workflow/scripts/silhouette_utils.R"
-
     output:
-        rds="results/posthocfilter/seurat_posthocfilt_threshold_{doublet_method}_{decon_method}_{empty_method}_{sample}.rds",
-        nclusters=temp("results/posthocfilter/seurat_posthocfilt_threshold_{doublet_method}_{decon_method}_{empty_method}_{sample}_nclusters.txt"),
-        cluster_ids=temp("results/posthocfilter/seurat_posthocfilt_threshold_{doublet_method}_{decon_method}_{empty_method}_{sample}_cluster_ids.txt")
+        rds=f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_threshold_{{doublet_method}}_{{decon_method}}_{{empty_method}}_{{sample}}.rds",
+        nclusters=temp(f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_threshold_{{doublet_method}}_{{decon_method}}_{{empty_method}}_{{sample}}_nclusters.txt"),
+        cluster_ids=temp(f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_threshold_{{doublet_method}}_{{decon_method}}_{{empty_method}}_{{sample}}_cluster_ids.txt")
+    log:
+        f"{RESULTS_DIR}/logs/posthocfilter/posthocfilter_threshold_{{doublet_method}}_{{decon_method}}_{{empty_method}}_{{sample}}.log"
     conda:
         "../envs/posthocfilter.yml"
     wildcard_constraints:
@@ -20,22 +21,25 @@ rule posthocfilter_threshold:
     params:
         min_numfeatures = config["min_nfeature"],
         min_umicount = config["min_ncount"],
-        max_mtdna_pcent = config["max_mtdna"]
+        max_mtdna_pcent = config["max_mtdna"],
+        seed=WORKFLOW_SEED
     shell:
         """
-        Rscript {input.script}  {input.data} {output.rds} \
-        {params.min_numfeatures} {params.min_umicount} {params.max_mtdna_pcent} {output.nclusters} {output.cluster_ids}
+        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script}  {input.data} {output.rds}         {params.min_numfeatures} {params.min_umicount} {params.max_mtdna_pcent} {output.nclusters} {output.cluster_ids} > {log} 2>&1
         """
 
 
 rule posthocfilter_threshold_cellbender:
     input:
-        data="results/{doublet_method}/seurat_{doublet_method}_cellbender_fromraw_{sample}.rds",
-        script="workflow/scripts/posthocfilter_threshold.R"
+        data=f"{RESULTS_DIR}/{{doublet_method}}/seurat_{{doublet_method}}_cellbender_fromraw_{{sample}}.rds",
+        script="workflow/scripts/posthocfilter_threshold.R",
+        helper="workflow/scripts/silhouette_utils.R"
     output:
-        rds="results/posthocfilter/seurat_posthocfilt_threshold_{doublet_method}_cellbender_fromraw_{sample}.rds",
-        nclusters=temp("results/posthocfilter/seurat_posthocfilt_threshold_{doublet_method}_cellbender_fromraw_{sample}_nclusters.txt"),
-        cluster_ids=temp("results/posthocfilter/seurat_posthocfilt_threshold_{doublet_method}_cellbender_fromraw_{sample}_cluster_ids.txt")
+        rds=f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_threshold_{{doublet_method}}_cellbender_fromraw_{{sample}}.rds",
+        nclusters=temp(f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_threshold_{{doublet_method}}_cellbender_fromraw_{{sample}}_nclusters.txt"),
+        cluster_ids=temp(f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_threshold_{{doublet_method}}_cellbender_fromraw_{{sample}}_cluster_ids.txt")
+    log:
+        f"{RESULTS_DIR}/logs/posthocfilter/posthocfilter_threshold_{{doublet_method}}_cellbender_fromraw_{{sample}}.log"
     conda:
         "../envs/posthocfilter.yml"
     wildcard_constraints:
@@ -46,9 +50,9 @@ rule posthocfilter_threshold_cellbender:
     params:
         min_numfeatures = config["min_nfeature"],
         min_umicount = config["min_ncount"],
-        max_mtdna_pcent = config["max_mtdna"]
+        max_mtdna_pcent = config["max_mtdna"],
+        seed=WORKFLOW_SEED
     shell:
         """
-        Rscript {input.script}  {input.data} {output.rds} \
-        {params.min_numfeatures} {params.min_umicount} {params.max_mtdna_pcent} {output.nclusters} {output.cluster_ids}
+        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script}  {input.data} {output.rds}         {params.min_numfeatures} {params.min_umicount} {params.max_mtdna_pcent} {output.nclusters} {output.cluster_ids} > {log} 2>&1
         """

@@ -1,0 +1,13 @@
+name: scrnaseq-preprocessing-tests
+channels:
+  - conda-forge
+  - bioconda
+channel_priority: strict
+dependencies:
+  - python=3.12
+  - pytest
+  - pyyaml
+  - snakemake=9.16.3
+  - conda
+  - mamba
+  - hdf5

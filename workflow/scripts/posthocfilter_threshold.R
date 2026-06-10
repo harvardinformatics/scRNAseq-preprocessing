@@ -14,6 +14,7 @@ library("scater")
 options(future.globals.maxSize = 16 * 1024^3)
 
 source("workflow/scripts/silhouette_utils.R")
+WORKFLOW_SEED <- set_workflow_seed()
 
 write_cluster_metadata <- function(seurat_obj, nclusters_output, cluster_ids_output) {
   cluster_ids <- levels(Idents(seurat_obj))
@@ -29,11 +30,11 @@ seurat <- readRDS(seurat)
 
 seurat_filtered <- subset(seurat, subset = nFeature_RNA > min_nfeature & nCount_RNA > min_ncount & percent.mt < max_mtdna)
 
-seurat_filtered <- SCTransform(seurat_filtered, vars.to.regress = "percent.mt", verbose = FALSE)
-seurat_filtered <- RunPCA(seurat_filtered, verbose = FALSE)
-seurat_filtered <- RunUMAP(seurat_filtered, dims = 1:30)
+seurat_filtered <- SCTransform(seurat_filtered, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat_filtered <- RunPCA(seurat_filtered, seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat_filtered <- RunUMAP(seurat_filtered, dims = 1:30, seed.use = WORKFLOW_SEED)
 seurat_filtered <- FindNeighbors(seurat_filtered, dims = 1:30)
-seurat_filtered <- FindClusters(seurat_filtered)
+seurat_filtered <- FindClusters(seurat_filtered, random.seed = WORKFLOW_SEED)
 seurat_filtered <- add_silhouette_to_metadata(seurat_filtered)
 saveRDS(seurat_filtered,file=filtered_output)
 write_cluster_metadata(seurat_filtered, nclusters_output, cluster_ids_output)

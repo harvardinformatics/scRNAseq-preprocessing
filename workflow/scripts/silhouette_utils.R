@@ -1,3 +1,12 @@
+set_workflow_seed <- function(seed = Sys.getenv("SCRNASEQ_PREPROCESS_SEED", "12345")) {
+  seed <- suppressWarnings(as.integer(seed))
+  if (length(seed) != 1 || is.na(seed)) {
+    stop("SCRNASEQ_PREPROCESS_SEED must be an integer")
+  }
+  set.seed(seed)
+  seed
+}
+
 add_silhouette_to_metadata <- function(
     seurat_obj,
     cluster_col = "seurat_clusters",

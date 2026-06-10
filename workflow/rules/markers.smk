@@ -1,51 +1,34 @@
-from pathlib import Path
-
-
-def read_cluster_ids(cluster_ids_path):
-    with open(cluster_ids_path) as handle:
-        return [line.strip() for line in handle if line.strip()]
-
-
 checkpoint marker_manifest:
     input:
-        cluster_ids="results/{prefix}_cluster_ids.txt"
+        cluster_ids=f"{RESULTS_DIR}/{{prefix}}_cluster_ids.txt"
     output:
-        manifest=temp(directory("results/{prefix}_marker_manifest"))
-    run:
-        manifest_dir = Path(output.manifest)
-        manifest_dir.mkdir(parents=True, exist_ok=True)
-
-        for existing_path in manifest_dir.iterdir():
-            if existing_path.is_file():
-                existing_path.unlink()
-
-        for cluster_id in read_cluster_ids(input.cluster_ids):
-            (manifest_dir / f"{cluster_id}.txt").write_text(f"{cluster_id}\n")
-
-
-def marker_chunk_inputs(wildcards):
-    manifest_dir = checkpoints.marker_manifest.get(prefix=wildcards.prefix).output.manifest
-    cluster_ids = glob_wildcards(str(Path(manifest_dir) / "{cluster}.txt")).cluster
-    return expand(
-        "results/{prefix}_markergenes_cluster{cluster}.csv",
-        prefix=wildcards.prefix,
-        cluster=cluster_ids
-    )
+        manifest=temp(directory(f"{RESULTS_DIR}/{{prefix}}_marker_manifest"))
+    log:
+        f"{RESULTS_DIR}/logs/markers/{{prefix}}_marker_manifest.log"
+    conda:
+        "../envs/tenx2seuratrds.yml"
+    script:
+        "../scripts/write_marker_manifest.py"
 
 
 rule find_markers:
     input:
-        rds="results/{prefix}.rds",
-        script="workflow/scripts/find_markers.R"
+        rds=f"{RESULTS_DIR}/{{prefix}}.rds",
+        script="workflow/scripts/find_markers.R",
+        helper="workflow/scripts/silhouette_utils.R"
     output:
-        temp("results/{prefix}_markergenes_cluster{cluster}.csv")
+        temp(f"{RESULTS_DIR}/{{prefix}}_markergenes_cluster{{cluster}}.csv")
+    log:
+        f"{RESULTS_DIR}/logs/markers/{{prefix}}_markergenes_cluster{{cluster}}.log"
     conda:
         "../envs/tenx2seuratrds.yml"
     resources:
         mem_mb=lambda wildcards, attempt: int(12000 * (2 ** (attempt - 1))),
         runtime=lambda wildcards, attempt: int(240 * (2 ** (attempt - 1)))
+    params:
+        seed=WORKFLOW_SEED
     shell:
-        "Rscript {input.script} {input.rds} {wildcards.cluster} {output}"
+        "SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script} {input.rds} {wildcards.cluster} {output} > {log} 2>&1"
 
 
 rule combine_markers:
@@ -53,16 +36,23 @@ rule combine_markers:
         markers=marker_chunk_inputs,
         script="workflow/scripts/combine_markers.R"
     output:
-        "results/{prefix}_markergenes.csv"
+        f"{RESULTS_DIR}/{{prefix}}_markergenes.csv"
+    log:
+        f"{RESULTS_DIR}/logs/markers/{{prefix}}_combine_markers.log"
     conda:
         "../envs/tenx2seuratrds.yml"
     resources:
         mem_mb=lambda wildcards, attempt: int(4000 * (2 ** (attempt - 1))),
         runtime=lambda wildcards, attempt: int(60 * (2 ** (attempt - 1)))
+    params:
+        seed=WORKFLOW_SEED,
+        cluster_ids=lambda wildcards: f"{RESULTS_DIR}/{wildcards.prefix}_cluster_ids.txt",
+        nclusters=lambda wildcards: f"{RESULTS_DIR}/{wildcards.prefix}_nclusters.txt",
+        manifest=lambda wildcards: f"{RESULTS_DIR}/{wildcards.prefix}_marker_manifest"
     shell:
         """
-        Rscript {input.script} {output} {input.markers}
-        rm -f results/{wildcards.prefix}_cluster_ids.txt
-        rm -f results/{wildcards.prefix}_nclusters.txt
-        rm -rf results/{wildcards.prefix}_marker_manifest
+        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script} {output} {input.markers} > {log} 2>&1
+        rm -f {params.cluster_ids}
+        rm -f {params.nclusters}
+        rm -rf {params.manifest}
         """

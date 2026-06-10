@@ -10,6 +10,7 @@ library("igraph")
 options(future.globals.maxSize = 16 * 1024^3)
 
 source("workflow/scripts/silhouette_utils.R")
+WORKFLOW_SEED <- set_workflow_seed()
 
 write_cluster_metadata <- function(seurat_obj, nclusters_output, cluster_ids_output) {
   cluster_ids <- levels(Idents(seurat_obj))
@@ -23,6 +24,7 @@ write_cluster_metadata <- function(seurat_obj, nclusters_output, cluster_ids_out
 
 seurat <- readRDS(seurat)
 
+set.seed(WORKFLOW_SEED)
 sweep.res.list <- paramSweep(seurat, PCs = 1:10, sct = TRUE)
 sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
 bcmvn <- find.pK(sweep.stats)
@@ -35,6 +37,7 @@ nExp_poi <- round(0.15*nrow(seurat@meta.data))
 homotypic.prop <- modelHomotypic(seurat$seurat_clusters)
 nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
 
+set.seed(WORKFLOW_SEED)
 seurat <- doubletFinder(seurat, PCs = 1:10, pN = 0.25,
                                  pK = optimal_pk, nExp = nExp_poi.adj,
                                  reuse.pANN = NULL,
@@ -46,11 +49,11 @@ rm(seurat)
 gc()
 
 seurat_singlets[["percent.mt"]] <- PercentageFeatureSet(seurat_singlets, pattern = "(?i)^mt-")
-seurat_singlets <- SCTransform(seurat_singlets, vars.to.regress = "percent.mt", verbose = FALSE)
-seurat_singlets <- RunPCA(seurat_singlets, verbose = FALSE)
-seurat_singlets <- RunUMAP(seurat_singlets, dims = 1:30)
+seurat_singlets <- SCTransform(seurat_singlets, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat_singlets <- RunPCA(seurat_singlets, seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat_singlets <- RunUMAP(seurat_singlets, dims = 1:30, seed.use = WORKFLOW_SEED)
 seurat_singlets <- FindNeighbors(seurat_singlets, dims = 1:30)
-seurat_singlets <- FindClusters(seurat_singlets)
+seurat_singlets <- FindClusters(seurat_singlets, random.seed = WORKFLOW_SEED)
 seurat_singlets <- add_silhouette_to_metadata(seurat_singlets)
 
 saveRDS(seurat_singlets,file=output)

@@ -1,24 +1,23 @@
-def input_function(wildcards):
-    tenx_dir = sampleinfo.loc[sampleinfo["sampleid"] == wildcards.sample, "tenx_datadir"].values[0]
-    input_path = os.path.join(tenx_dir, "raw_feature_bc_matrix")
-    return input_path
-
 rule emptydrops:
     input:
-        data=input_function,
+        data=tenx_raw_matrix_input,
         script="workflow/scripts/emptydrops.R",
         helper="workflow/scripts/silhouette_utils.R"
     output:
-        seurat="results/emptydrops/filtered_seurat_emptydrops_{sample}.rds",
-        matrixdir=directory("results/emptydrops/{sample}_emptydrops_filtered_matrix"),
-        nclusters=temp("results/emptydrops/filtered_seurat_emptydrops_{sample}_nclusters.txt"),
-        cluster_ids=temp("results/emptydrops/filtered_seurat_emptydrops_{sample}_cluster_ids.txt")
+        seurat=f"{RESULTS_DIR}/emptydrops/filtered_seurat_emptydrops_{{sample}}.rds",
+        matrixdir=directory(f"{RESULTS_DIR}/emptydrops/{{sample}}_emptydrops_filtered_matrix"),
+        nclusters=temp(f"{RESULTS_DIR}/emptydrops/filtered_seurat_emptydrops_{{sample}}_nclusters.txt"),
+        cluster_ids=temp(f"{RESULTS_DIR}/emptydrops/filtered_seurat_emptydrops_{{sample}}_cluster_ids.txt")
+    log:
+        f"{RESULTS_DIR}/logs/emptydrops/emptydrops_{{sample}}.log"
     conda:
         "../envs/emptydrops.yml"
     resources:
         mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
+    params:
+        seed=WORKFLOW_SEED
     shell:
         """
-        Rscript {input.script} {input.data} {output.seurat} {output.matrixdir} {output.nclusters} {output.cluster_ids}
+        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script} {input.data} {output.seurat} {output.matrixdir} {output.nclusters} {output.cluster_ids} {wildcards.sample} > {log} 2>&1
         """

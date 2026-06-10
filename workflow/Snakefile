@@ -1,32 +1,111 @@
 import pandas as pd
-import os
 import yaml
 
-sampleinfo = pd.read_table(config["sampleTable"],dtype={"sampleid": str})
+include: "rules/common.smk"
 
-SAMPLES=list(sampleinfo.loc[:,"sampleid"])
+validated_config = validate_workflow_config(config)
+sampleinfo = pd.read_table(config["sampleTable"], dtype={"sampleid": str})
+sampleinfo = validate_sample_sheet(sampleinfo, config["sampleTable"])
+
+SAMPLES = list(sampleinfo.loc[:, "sampleid"])
 
 with open("profiles/slurm/config.yaml") as f:
     slurm_profile_config = yaml.safe_load(f)
 
-DECON_METHODS = config["ambient_decon_methods"]
-DOUBLET_METHODS = config["doublet_removal_methods"]
-EMPTYDROP_METHODS = config["emptydrop_removal_methods"]
-POSTHOC_METHODS = config["posthoc_methods"]
+DECON_METHODS = validated_config["decon_methods"]
+DOUBLET_METHODS = validated_config["doublet_methods"]
+EMPTYDROP_METHODS = validated_config["emptydrop_methods"]
+POSTHOC_METHODS = validated_config["posthoc_methods"]
+RESULTS_DIR = config.get("resultsDir", "results").rstrip("/")
+WORKFLOW_SEED = int(config["workflow_seed"])
+
+TENX_TARGETS = expand(
+    f"{RESULTS_DIR}/seurat_filtered/filtered_seurat_tenx_{{sample}}_markergenes.csv",
+    sample=SAMPLES,
+)
+EMPTYDROPS_TARGETS = (
+    expand(
+        f"{RESULTS_DIR}/emptydrops/filtered_seurat_emptydrops_{{sample}}_markergenes.csv",
+        sample=SAMPLES,
+    )
+    if "emptydrops" in EMPTYDROP_METHODS
+    else []
+)
+SOUPX_TARGETS = (
+    expand(
+        f"{RESULTS_DIR}/soupx/seurat_soupx_{{empty_method}}_{{sample}}_markergenes.csv",
+        sample=SAMPLES,
+        empty_method=EMPTYDROP_METHODS,
+    )
+    if "soupx" in DECON_METHODS
+    else []
+)
+CELLBENDER_TARGETS = (
+    expand(
+        f"{RESULTS_DIR}/cellbender_fromraw/seurat_cellbender_fromraw_{{sample}}_markergenes.csv",
+        sample=SAMPLES,
+    )
+    if "cellbender_fromraw" in DECON_METHODS
+    else []
+)
+SOUPX_DOUBLET_TARGETS = (
+    expand(
+        f"{RESULTS_DIR}/{{doublet_method}}/seurat_{{doublet_method}}_soupx_{{empty_method}}_{{sample}}_markergenes.csv",
+        sample=SAMPLES,
+        doublet_method=DOUBLET_METHODS,
+        empty_method=EMPTYDROP_METHODS,
+    )
+    if "soupx" in DECON_METHODS
+    else []
+)
+CELLBENDER_DOUBLET_TARGETS = (
+    expand(
+        f"{RESULTS_DIR}/{{doublet_method}}/seurat_{{doublet_method}}_cellbender_fromraw_{{sample}}_markergenes.csv",
+        sample=SAMPLES,
+        doublet_method=DOUBLET_METHODS,
+    )
+    if "cellbender_fromraw" in DECON_METHODS
+    else []
+)
+SOUPX_POSTHOC_TARGETS = (
+    expand(
+        f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_{{posthoc_method}}_{{doublet_method}}_soupx_{{empty_method}}_{{sample}}_markergenes.csv",
+        sample=SAMPLES,
+        posthoc_method=POSTHOC_METHODS,
+        doublet_method=DOUBLET_METHODS,
+        empty_method=EMPTYDROP_METHODS,
+    )
+    if "soupx" in DECON_METHODS
+    else []
+)
+CELLBENDER_POSTHOC_TARGETS = (
+    expand(
+        f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_{{posthoc_method}}_{{doublet_method}}_cellbender_fromraw_{{sample}}_markergenes.csv",
+        sample=SAMPLES,
+        posthoc_method=POSTHOC_METHODS,
+        doublet_method=DOUBLET_METHODS,
+    )
+    if "cellbender_fromraw" in DECON_METHODS
+    else []
+)
+ALL_TARGETS = (
+    TENX_TARGETS
+    + EMPTYDROPS_TARGETS
+    + SOUPX_TARGETS
+    + CELLBENDER_TARGETS
+    + SOUPX_DOUBLET_TARGETS
+    + CELLBENDER_DOUBLET_TARGETS
+    + SOUPX_POSTHOC_TARGETS
+    + CELLBENDER_POSTHOC_TARGETS
+)
 
 default_target: True
 
 
 rule all:
     input:
-        expand("results/seurat_filtered/filtered_seurat_tenx_" + "{sample}" + "_markergenes.csv",sample=SAMPLES),
-        expand("results/emptydrops/filtered_seurat_emptydrops_{sample}_markergenes.csv",sample=SAMPLES),  
-        expand("results/soupx/seurat_soupx_{empty_method}_" + "{sample}" + "_markergenes.csv",sample=SAMPLES,empty_method=EMPTYDROP_METHODS),
-        expand("results/cellbender_fromraw/seurat_cellbender_fromraw_{sample}_markergenes.csv",sample=SAMPLES),
-        expand("results/{doublet_method}/seurat_{doublet_method}_soupx_{empty_method}_{sample}_markergenes.csv",sample=SAMPLES,doublet_method=DOUBLET_METHODS,empty_method=EMPTYDROP_METHODS),
-        expand("results/{doublet_method}/seurat_{doublet_method}_cellbender_fromraw_{sample}_markergenes.csv",sample=SAMPLES,doublet_method=DOUBLET_METHODS),
-        expand("results/posthocfilter/seurat_posthocfilt_{posthoc_method}_{doublet_method}_cellbender_fromraw_{sample}_markergenes.csv",sample=SAMPLES,posthoc_method=POSTHOC_METHODS,doublet_method=DOUBLET_METHODS),
-        expand("results/posthocfilter/seurat_posthocfilt_{posthoc_method}_{doublet_method}_soupx_{empty_method}_{sample}_markergenes.csv",sample=SAMPLES,posthoc_method=POSTHOC_METHODS,doublet_method=DOUBLET_METHODS,empty_method=EMPTYDROP_METHODS)
+        ALL_TARGETS
+
 
 include: "rules/tenx2seuratrds.smk"
 include: "rules/soupx.smk"
