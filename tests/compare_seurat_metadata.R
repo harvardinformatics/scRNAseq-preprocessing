@@ -10,7 +10,7 @@ if (is.na(numeric_tolerance) || length(numeric_tolerance) != 1 || numeric_tolera
   stop("SEURAT_METADATA_NUMERIC_TOLERANCE must be a non-negative number", call. = FALSE)
 }
 
-neighborhood_purity_tolerance <- as.numeric(Sys.getenv("SEURAT_METADATA_NEIGHBORHOOD_PURITY_TOLERANCE", "0.02"))
+neighborhood_purity_tolerance <- as.numeric(Sys.getenv("SEURAT_METADATA_NEIGHBORHOOD_PURITY_TOLERANCE", "0.025"))
 if (is.na(neighborhood_purity_tolerance) || length(neighborhood_purity_tolerance) != 1 || neighborhood_purity_tolerance < 0) {
   stop("SEURAT_METADATA_NEIGHBORHOOD_PURITY_TOLERANCE must be a non-negative number", call. = FALSE)
 }
