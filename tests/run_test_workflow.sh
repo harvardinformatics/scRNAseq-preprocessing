@@ -13,6 +13,7 @@ set -euo pipefail
 usage() {
     echo "Usage: $0 [--conda-prefix PATH] [additional snakemake args...]"
     echo "Set TEST_WORKFLOW_SNAKEMAKE_ARGS to append whitespace-delimited Snakemake args before command-line extras."
+    echo "Set TEST_WORKFLOW_PROFILE_ARGS to replace the default Slurm/cannon profile args."
 }
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -48,19 +49,46 @@ if ! command -v snakemake >/dev/null 2>&1; then
     exit 127
 fi
 
+workflow_seed=$(python - <<PYSEED
+from pathlib import Path
+import re
+
+config_text = Path("config/config.yaml").read_text()
+for line in config_text.splitlines():
+    match = re.match(r"^workflow_seed\s*:\s*([^#\s]+)", line)
+    if match:
+        print(int(match.group(1)))
+        break
+else:
+    raise SystemExit("workflow_seed is missing from config/config.yaml")
+PYSEED
+)
+export SCRNASEQ_PREPROCESS_SEED="${SCRNASEQ_PREPROCESS_SEED:-${workflow_seed}}"
+if [[ "${SCRNASEQ_PREPROCESS_SEED}" != "${workflow_seed}" ]]; then
+    echo "SCRNASEQ_PREPROCESS_SEED=${SCRNASEQ_PREPROCESS_SEED} does not match config workflow_seed=${workflow_seed}" >&2
+    exit 2
+fi
+
+profile_args=(--workflow-profile profiles/slurm --profile cannon)
+if [[ -n "${TEST_WORKFLOW_PROFILE_ARGS:-}" ]]; then
+    # Intended for simple Snakemake profile/executor args.
+    read -r -a profile_args <<< "${TEST_WORKFLOW_PROFILE_ARGS}"
+fi
+
 common_args=(
     --snakefile workflow/Snakefile
     --configfile config/config.yaml
     --config sampleTable=testdata/samplesheet_test.tsv resultsDir=testdata/results
     --use-conda
-    --workflow-profile profiles/slurm
-    --profile cannon
+    "${profile_args[@]}"
 )
 
 conda_prefix_args=()
 if [[ -n "${snakemake_conda_prefix}" ]]; then
     conda_prefix_args=(--conda-prefix "${snakemake_conda_prefix}")
 fi
+
+test_workflow_jobs="${TEST_WORKFLOW_JOBS:-200}"
 
 env_snakemake_args=()
 if [[ -n "${TEST_WORKFLOW_SNAKEMAKE_ARGS:-}" ]]; then
@@ -76,7 +104,7 @@ snakemake \
     "${conda_prefix_args[@]}" \
     --rerun-incomplete \
     --retries 2 \
-    --jobs 200 \
+    --jobs "${test_workflow_jobs}" \
     --latency-wait 600 \
     "${env_snakemake_args[@]}" \
     "${extra_snakemake_args[@]}"

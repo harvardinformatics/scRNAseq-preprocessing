@@ -9,6 +9,6 @@ rule install_doubletfinder:
         "../envs/doubletfinder.yml"
     shell:
         """
-        Rscript -e "remotes::install_github('chris-mcginnis-ucsf/DoubletFinder', force = TRUE)" > {log} 2>&1
+        Rscript -e 'remotes::install_github("chris-mcginnis-ucsf/DoubletFinder", force = TRUE, dependencies = FALSE, upgrade = "never"); stopifnot(requireNamespace("DoubletFinder", quietly = TRUE), requireNamespace("Seurat", quietly = TRUE), requireNamespace("igraph", quietly = TRUE))' > {log} 2>&1
         touch {output}
         """

@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" != "remove-background" ]]; then
+    echo "test CellBender shim only supports: cellbender remove-background" >&2
+    exit 2
+fi
+shift
+
+if [[ "${1:-}" == "--help" ]]; then
+    echo "Usage: cellbender remove-background --input INPUT --output OUTPUT [--seed SEED] [--cuda]"
+    exit 0
+fi
+
+output=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --output)
+            output="${2:-}"
+            shift 2
+            ;;
+        --input|--seed)
+            shift 2
+            ;;
+        --cuda)
+            shift
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "${output}" ]]; then
+    echo "test CellBender shim requires --output" >&2
+    exit 2
+fi
+
+source_dir="${TEST_WORKFLOW_FAKE_CELLBENDER_SOURCE:-}"
+if [[ -z "${source_dir}" ]]; then
+    echo "TEST_WORKFLOW_FAKE_CELLBENDER_SOURCE is required for the test CellBender shim" >&2
+    exit 127
+fi
+
+base_source="${source_dir}/cellbender_test.h5"
+filtered_source="${source_dir}/cellbender_test_filtered.h5"
+filtered_output="${output%.h5}_filtered.h5"
+
+if [[ ! -s "${base_source}" || ! -s "${filtered_source}" ]]; then
+    echo "test CellBender shim could not find reference H5 outputs under ${source_dir}" >&2
+    exit 1
+fi
+
+mkdir -p "$(dirname "${output}")"
+cp "${base_source}" "${output}"
+cp "${filtered_source}" "${filtered_output}"

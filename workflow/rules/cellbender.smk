@@ -11,7 +11,7 @@ rule cellbender:
         workdir="scratch/cellbender/{sample}",
         seed=WORKFLOW_SEED
     container:
-        "docker://us.gcr.io/broad-dsde-methods/cellbender:latest"
+        "docker://us.gcr.io/broad-dsde-methods/cellbender@sha256:093f2caf1ce4acae4541ea45e52ab7b220ca131ec73b4d1f664b85fe12850bae"
     resources:
         mem_mb = lambda wildcards, attempt: int(50000 * (2 ** (attempt - 1))),
         slurm_partition = "gpu",

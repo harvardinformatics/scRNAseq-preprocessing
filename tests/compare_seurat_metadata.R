@@ -6,9 +6,18 @@ if (length(args) == 0 || length(args) %% 2 != 0) {
 suppressPackageStartupMessages(library("Seurat"))
 
 numeric_tolerance <- as.numeric(Sys.getenv("SEURAT_METADATA_NUMERIC_TOLERANCE", "1e-8"))
-if (is.na(numeric_tolerance) || length(numeric_tolerance) != 1) {
-  stop("SEURAT_METADATA_NUMERIC_TOLERANCE must be numeric", call. = FALSE)
+if (is.na(numeric_tolerance) || length(numeric_tolerance) != 1 || numeric_tolerance < 0) {
+  stop("SEURAT_METADATA_NUMERIC_TOLERANCE must be a non-negative number", call. = FALSE)
 }
+
+neighborhood_purity_tolerance <- as.numeric(Sys.getenv("SEURAT_METADATA_NEIGHBORHOOD_PURITY_TOLERANCE", "0.025"))
+if (is.na(neighborhood_purity_tolerance) || length(neighborhood_purity_tolerance) != 1 || neighborhood_purity_tolerance < 0) {
+  stop("SEURAT_METADATA_NEIGHBORHOOD_PURITY_TOLERANCE must be a non-negative number", call. = FALSE)
+}
+
+metadata_column_tolerances <- c(
+  neighborhood_purity = neighborhood_purity_tolerance
+)
 
 fail <- function(path, message) {
   stop(sprintf("%s: %s", path, message), call. = FALSE)
@@ -30,14 +39,20 @@ compare_metadata_column <- function(current_path, column, current_values, refere
     if (any(comparable)) {
       diff <- abs(current_numeric[comparable] - reference_numeric[comparable])
       scale <- pmax(abs(current_numeric[comparable]), abs(reference_numeric[comparable]), 1)
-      bad <- diff > numeric_tolerance * scale
+      column_tolerance <- if (column %in% names(metadata_column_tolerances)) {
+        metadata_column_tolerances[[column]]
+      } else {
+        numeric_tolerance
+      }
+      bad <- diff > column_tolerance * scale
       if (any(bad)) {
         fail(
           current_path,
           sprintf(
-            "metadata column %s differs numerically; max abs diff %.12g",
+            "metadata column %s differs numerically; max abs diff %.12g exceeds tolerance %.12g",
             column,
-            max(diff)
+            max(diff),
+            column_tolerance
           )
         )
       }
