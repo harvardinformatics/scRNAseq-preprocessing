@@ -44,7 +44,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .snakemake/conda
-          key: snakemake-conda-${{ runner.os }}-${{ hashFiles('workflow/envs/*.yml') }}
+          key: snakemake-conda-${{ runner.os }}-${{ hashFiles('workflow/envs/*.yml', 'workflow/envs/*.pin.txt') }}
           restore-keys: |
             snakemake-conda-${{ runner.os }}-
 
@@ -58,7 +58,6 @@ jobs:
       fail-fast: false
       matrix:
         env_name:
-          - cellbender.yml
           - doubletfinder.yml
           - emptydrops.yml
           - posthocfilter.yml

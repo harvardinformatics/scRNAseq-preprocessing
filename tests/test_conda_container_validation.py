@@ -1,4 +1,5 @@
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -12,7 +13,6 @@ ENV_DIR = Path("workflow/envs")
 RULE_DIR = Path("workflow/rules")
 TEST_SAMPLE_SHEET = Path("testdata/samplesheet_test.tsv")
 EXPECTED_ENV_FILES = {
-    "cellbender.yml",
     "doubletfinder.yml",
     "emptydrops.yml",
     "posthocfilter.yml",
@@ -22,9 +22,9 @@ EXPECTED_ENV_FILES = {
 }
 CONDA_REFERENCE_RE = re.compile(r"conda:\s*\n\s*['\"]\.\./envs/([^'\"]+)['\"]")
 CONTAINER_RE = re.compile(r"container:\s*\n\s*['\"]([^'\"]+)['\"]")
+CELLBENDER_CONTAINER_URI = "docker://us.gcr.io/broad-dsde-methods/cellbender@sha256:093f2caf1ce4acae4541ea45e52ab7b220ca131ec73b4d1f664b85fe12850bae"
 
 R_IMPORTS_BY_ENV = {
-    "cellbender.yml": ["Seurat", "tidyverse", "bluster"],
     "doubletfinder.yml": ["Seurat", "tidyverse", "remotes", "fields", "Matrix", "KernSmooth", "ROCR", "igraph", "glmGamPoi", "bluster"],
     "emptydrops.yml": ["Seurat", "tidyverse", "DropletUtils", "scater", "glmGamPoi", "bluster", "Matrix", "R.utils"],
     "posthocfilter.yml": ["Seurat", "tidyverse", "glmGamPoi", "scater", "bluster"],
@@ -32,9 +32,7 @@ R_IMPORTS_BY_ENV = {
     "soupx.yml": ["Seurat", "tidyverse", "glmGamPoi", "bluster", "SoupX"],
     "tenx2seuratrds.yml": ["Seurat", "tidyverse", "scCustomize", "hdf5r", "glmGamPoi", "bluster", "presto"],
 }
-PYTHON_IMPORTS_BY_ENV = {
-    "cellbender.yml": ["cellbender"],
-}
+PYTHON_IMPORTS_BY_ENV = {}
 
 
 def repo_root():
@@ -73,6 +71,19 @@ def available_conda_frontend():
     raise AssertionError("neither mamba nor conda is available on PATH")
 
 
+def linux_conda_subdir():
+    if platform.system() == "Linux" and platform.machine() in {"x86_64", "AMD64"}:
+        return "linux-64"
+    return None
+
+
+def pin_file_for_env(env_path):
+    subdir = linux_conda_subdir()
+    if subdir is None:
+        return None
+    return env_path.with_suffix(f".{subdir}.pin.txt")
+
+
 def r_require_namespace_expr(packages):
     package_vector = ", ".join(repr(package) for package in packages)
     return (
@@ -100,6 +111,13 @@ def test_workflow_conda_env_files_are_well_formed_and_referenced_envs_exist():
         assert env.get("channel_priority") == "strict", env_path
         assert env.get("dependencies"), env_path
 
+        pin_path = pin_file_for_env(env_path)
+        if pin_path is not None:
+            assert pin_path.exists(), f"missing Snakemake conda pin file: {pin_path}"
+            pin_text = pin_path.read_text()
+            assert "@EXPLICIT" in pin_text, f"pin file is not an explicit conda spec: {pin_path}"
+            assert "conda-forge" in pin_text or "bioconda" in pin_text, pin_path
+
     referenced = set()
     for rule_path in sorted((root / RULE_DIR).glob("*.smk")):
         referenced.update(CONDA_REFERENCE_RE.findall(rule_path.read_text()))
@@ -116,7 +134,7 @@ def test_workflow_container_declarations_are_explicit_and_recognized():
             containers.append((rule_path, uri))
 
     assert containers, "no workflow container declarations found"
-    assert containers == [(root / "workflow/rules/cellbender.smk", "docker://us.gcr.io/broad-dsde-methods/cellbender:latest")]
+    assert containers == [(root / "workflow/rules/cellbender.smk", CELLBENDER_CONTAINER_URI)]
     for _, uri in containers:
         assert uri.startswith("docker://")
         assert ":" in uri.removeprefix("docker://"), f"container URI is missing a tag: {uri}"
@@ -135,8 +153,14 @@ def test_conda_env_solves_and_key_packages_import(tmp_path, pytestconfig, env_na
     prefix = tmp_path / env_name.removesuffix(".yml")
     conda = available_conda_frontend()
 
+    pin_path = pin_file_for_env(env_path)
+    if pin_path is not None and pin_path.exists():
+        create_cmd = [conda, "create", "--yes", "--prefix", str(prefix), "--file", str(pin_path)]
+    else:
+        create_cmd = [conda, "env", "create", "--yes", "--prefix", str(prefix), "--file", str(env_path)]
+
     create = run_command(
-        [conda, "env", "create", "--yes", "--prefix", str(prefix), "--file", str(env_path)],
+        create_cmd,
         root,
         timeout=1800,
     )
@@ -172,7 +196,7 @@ def test_cellbender_container_can_be_pulled(tmp_path, pytestconfig):
         pytest.skip("use --run-container-validation to pull workflow containers")
 
     root = repo_root()
-    uri = "docker://us.gcr.io/broad-dsde-methods/cellbender:latest"
+    uri = CELLBENDER_CONTAINER_URI
     docker_image = uri.removeprefix("docker://")
 
     if shutil.which("docker"):

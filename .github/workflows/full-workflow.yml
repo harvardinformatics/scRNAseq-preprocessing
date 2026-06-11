@@ -83,7 +83,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .snakemake/conda
-          key: snakemake-conda-full-${{ runner.os }}-${{ hashFiles('workflow/envs/*.yml') }}
+          key: snakemake-conda-full-${{ runner.os }}-${{ hashFiles('workflow/envs/*.yml', 'workflow/envs/*.pin.txt') }}
           restore-keys: |
             snakemake-conda-full-${{ runner.os }}-
             snakemake-conda-${{ runner.os }}-
