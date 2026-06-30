@@ -20,6 +20,16 @@ on:
         required: false
         default: false
         type: boolean
+      run_downsample_rule:
+        description: "Run the downsampling rule execution smoke test"
+        required: false
+        default: false
+        type: boolean
+      run_downsample_workflow:
+        description: "Run the full downsampling workflow test"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   pytest:
@@ -51,6 +61,66 @@ jobs:
       - name: Run tests
         run: pytest tests -q
 
+  downsample-rule:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_downsample_rule
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      SNAKEMAKE_CONDA_FRONTEND: mamba
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create test environment
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+          cache-downloads: true
+
+      - name: Cache Snakemake rule environments
+        uses: actions/cache@v4
+        with:
+          path: .snakemake/conda
+          key: snakemake-conda-${{ runner.os }}-${{ hashFiles('workflow/envs/*.yml') }}
+          restore-keys: |
+            snakemake-conda-${{ runner.os }}-
+
+      - name: Run downsampling rule smoke test
+        run: pytest tests/downsampling --run-downsample-rule -q
+
+  downsample-workflow:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_downsample_workflow
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      SNAKEMAKE_CONDA_FRONTEND: mamba
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create test environment
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+          cache-downloads: true
+
+      - name: Cache Snakemake rule environments
+        uses: actions/cache@v4
+        with:
+          path: .snakemake/conda
+          key: snakemake-conda-${{ runner.os }}-${{ hashFiles('workflow/envs/*.yml') }}
+          restore-keys: |
+            snakemake-conda-${{ runner.os }}-
+
+      - name: Run full downsampling workflow test
+        run: pytest tests/downsampling --run-downsample-workflow -q
+
   conda-validation:
     if: github.event_name == 'workflow_dispatch' && inputs.run_conda_validation
     runs-on: ubuntu-latest
@@ -60,6 +130,7 @@ jobs:
         env_name:
           - cellbender.yml
           - doubletfinder.yml
+          - downsample_clusters.yml
           - emptydrops.yml
           - posthocfilter.yml
           - scdblfinder.yml

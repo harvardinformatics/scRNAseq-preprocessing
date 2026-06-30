@@ -50,7 +50,7 @@ fi
 common_args=(
     --snakefile workflow/Snakefile
     --configfile config/config.yaml
-    --config sampleTable=testdata/samplesheet_test.tsv resultsDir=testdata/results
+    --config sampleTable=testdata/samplesheet_test.tsv resultsDir=testdata/results downsampleResultsDir=testdata/results/downsampling
     --use-conda
     --workflow-profile profiles/slurm
     --profile cannon

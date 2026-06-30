@@ -13,9 +13,16 @@ scratch/
 *out
 results/
 testdata/results/
+testdata/downsampling/results/
 # Keep golden test outputs trackable even though results/ is ignored.
 !tests/reference_outputs/
 !tests/reference_outputs/**
 !tests/reference_outputs/testdata/
 !tests/reference_outputs/testdata/results/
+testdata/downsampling/results/
 !tests/reference_outputs/testdata/results/**
+!tests/downsampling/reference_outputs/
+!tests/downsampling/reference_outputs/**
+!tests/downsampling/reference_outputs/testdata/
+!tests/downsampling/reference_outputs/testdata/results/
+!tests/downsampling/reference_outputs/testdata/results/**

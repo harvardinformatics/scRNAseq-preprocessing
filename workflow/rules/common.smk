@@ -2,8 +2,10 @@ import os
 from pathlib import Path
 
 
-REQUIRED_CONFIG_KEYS = {
+BASE_REQUIRED_CONFIG_KEYS = {
     "conda-channel-priority",
+}
+PREPROCESS_REQUIRED_CONFIG_KEYS = {
     "sampleTable",
     "workflow_seed",
     "emptydrop_removal_methods",
@@ -14,6 +16,7 @@ REQUIRED_CONFIG_KEYS = {
     "min_ncount",
     "max_mtdna",
 }
+ALLOWED_WORKFLOW_MODES = {"preprocess", "preprocess_and_downsample", "downsample_only"}
 ALLOWED_EMPTYDROP_METHODS = {"tenx", "emptydrops"}
 ALLOWED_DECON_METHODS = {"soupx", "cellbender_fromraw"}
 ALLOWED_DOUBLET_METHODS = {"doubletfinder", "scdblfinder"}
@@ -30,6 +33,11 @@ def require_positive_int(config_values, key, errors):
     value = config_values.get(key)
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         errors.append(f"{key} must be a positive integer")
+
+
+def require_optional_positive_int(config_values, key, errors):
+    if key in config_values:
+        require_positive_int(config_values, key, errors)
 
 
 def validate_method_list(config_values, key, allowed_values, errors):
@@ -61,30 +69,83 @@ def validate_method_list(config_values, key, allowed_values, errors):
     return normalized
 
 
+def validate_downsample_targets(config_values, errors):
+    if "downsampleTargets" not in config_values:
+        return
+
+    value = config_values["downsampleTargets"]
+    if value == "all":
+        return
+    if not isinstance(value, list) or not value:
+        errors.append("downsampleTargets must be 'all' or a non-empty list")
+        return
+    for item in value:
+        if not isinstance(item, str) or not item.strip():
+            errors.append("downsampleTargets contains a non-string or empty value")
+            return
+
+    duplicates = sorted({item for item in value if value.count(item) > 1})
+    if duplicates:
+        errors.append("downsampleTargets contains duplicate value(s): " + ", ".join(duplicates))
+
+
 def validate_workflow_config(config_values):
     errors = []
-    missing_keys = sorted(REQUIRED_CONFIG_KEYS - set(config_values.keys()))
+    workflow_mode = config_values.get("workflow_mode", "preprocess")
+    if workflow_mode not in ALLOWED_WORKFLOW_MODES:
+        errors.append(
+            "workflow_mode must be one of: " + ", ".join(sorted(ALLOWED_WORKFLOW_MODES))
+        )
+        workflow_mode = "preprocess"
+
+    required_keys = set(BASE_REQUIRED_CONFIG_KEYS)
+    if workflow_mode in {"preprocess", "preprocess_and_downsample"}:
+        required_keys.update(PREPROCESS_REQUIRED_CONFIG_KEYS)
+
+    missing_keys = sorted(required_keys - set(config_values.keys()))
     if missing_keys:
         errors.append("missing required key(s): " + ", ".join(missing_keys))
 
-    require_non_empty_string(config_values, "sampleTable", errors)
     if config_values.get("conda-channel-priority") != "strict":
         errors.append("conda-channel-priority must be 'strict'")
 
-    workflow_seed = config_values.get("workflow_seed")
-    if isinstance(workflow_seed, bool) or not isinstance(workflow_seed, int):
-        errors.append("workflow_seed must be an integer")
+    emptydrop_methods = []
+    decon_methods = []
+    doublet_methods = []
+    posthoc_methods = []
+    if workflow_mode in {"preprocess", "preprocess_and_downsample"}:
+        require_non_empty_string(config_values, "sampleTable", errors)
 
-    emptydrop_methods = validate_method_list(config_values, "emptydrop_removal_methods", ALLOWED_EMPTYDROP_METHODS, errors)
-    decon_methods = validate_method_list(config_values, "ambient_decon_methods", ALLOWED_DECON_METHODS, errors)
-    doublet_methods = validate_method_list(config_values, "doublet_removal_methods", ALLOWED_DOUBLET_METHODS, errors)
-    posthoc_methods = validate_method_list(config_values, "posthoc_methods", ALLOWED_POSTHOC_METHODS, errors)
+        workflow_seed = config_values.get("workflow_seed")
+        if isinstance(workflow_seed, bool) or not isinstance(workflow_seed, int):
+            errors.append("workflow_seed must be an integer")
 
-    require_positive_int(config_values, "min_nfeature", errors)
-    require_positive_int(config_values, "min_ncount", errors)
-    max_mtdna = config_values.get("max_mtdna")
-    if isinstance(max_mtdna, bool) or not isinstance(max_mtdna, (int, float)) or not 0 <= max_mtdna <= 100:
-        errors.append("max_mtdna must be a number between 0 and 100")
+        emptydrop_methods = validate_method_list(config_values, "emptydrop_removal_methods", ALLOWED_EMPTYDROP_METHODS, errors)
+        decon_methods = validate_method_list(config_values, "ambient_decon_methods", ALLOWED_DECON_METHODS, errors)
+        doublet_methods = validate_method_list(config_values, "doublet_removal_methods", ALLOWED_DOUBLET_METHODS, errors)
+        posthoc_methods = validate_method_list(config_values, "posthoc_methods", ALLOWED_POSTHOC_METHODS, errors)
+
+        require_positive_int(config_values, "min_nfeature", errors)
+        require_positive_int(config_values, "min_ncount", errors)
+        max_mtdna = config_values.get("max_mtdna")
+        if isinstance(max_mtdna, bool) or not isinstance(max_mtdna, (int, float)) or not 0 <= max_mtdna <= 100:
+            errors.append("max_mtdna must be a number between 0 and 100")
+
+    if workflow_mode in {"preprocess_and_downsample", "downsample_only"}:
+        if "downsampleSeuratObjectDir" in config_values:
+            require_non_empty_string(config_values, "downsampleSeuratObjectDir", errors)
+        if "downsampleResultsDir" in config_values:
+            require_non_empty_string(config_values, "downsampleResultsDir", errors)
+        require_optional_positive_int(config_values, "nDownsampleReplicates", errors)
+        if "workflowSeed" in config_values:
+            seed = config_values["workflowSeed"]
+            if isinstance(seed, bool) or not isinstance(seed, int):
+                errors.append("workflowSeed must be an integer")
+        if "downsampleRate" in config_values:
+            rate = config_values["downsampleRate"]
+            if isinstance(rate, bool) or not isinstance(rate, (int, float)) or not 0 < rate <= 1:
+                errors.append("downsampleRate must be > 0 and <= 1")
+        validate_downsample_targets(config_values, errors)
 
     if "resultsDir" in config_values:
         require_non_empty_string(config_values, "resultsDir", errors)
@@ -93,6 +154,7 @@ def validate_workflow_config(config_values):
         raise ValueError("Invalid workflow config: " + "; ".join(errors))
 
     return {
+        "workflow_mode": workflow_mode,
         "emptydrop_methods": emptydrop_methods,
         "decon_methods": decon_methods,
         "doublet_methods": doublet_methods,
@@ -187,3 +249,47 @@ def marker_chunk_inputs(wildcards):
         prefix=wildcards.prefix,
         cluster=cluster_ids,
     )
+
+
+def marker_targets(prefixes):
+    return [f"{RESULTS_DIR}/{prefix}_markergenes.csv" for prefix in prefixes]
+
+
+def rds_targets(prefixes):
+    return [f"{RESULTS_DIR}/{prefix}.rds" for prefix in prefixes]
+
+
+def select_downsample_inputs(inputs_by_target):
+    requested = config.get("downsampleTargets", "all")
+    if requested == "all" or requested == ["all"]:
+        return dict(inputs_by_target)
+
+    missing = sorted(set(requested) - set(inputs_by_target))
+    if missing:
+        raise ValueError(
+            "downsampleTargets contains unknown target(s): "
+            + ", ".join(missing)
+            + "; available targets are: "
+            + ", ".join(sorted(inputs_by_target))
+        )
+    return {target: inputs_by_target[target] for target in requested}
+
+
+def downsample_inputs_from_preprocess_outputs():
+    inputs = {}
+    for path in PREPROCESS_SEURAT_TARGETS:
+        target = Path(path).stem
+        if target in inputs and inputs[target] != path:
+            raise ValueError(f"duplicate downsample target name: {target}")
+        inputs[target] = path
+    return inputs
+
+
+def downsample_inputs_from_external_dir():
+    targets = sorted(
+        glob_wildcards(f"{DOWNSAMPLE_SEURAT_OBJECT_DIR}/{{downsample_target}}.rds").downsample_target
+    )
+    return {
+        target: f"{DOWNSAMPLE_SEURAT_OBJECT_DIR}/{target}.rds"
+        for target in targets
+    }

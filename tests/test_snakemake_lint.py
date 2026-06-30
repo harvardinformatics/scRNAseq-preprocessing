@@ -21,6 +21,7 @@ def test_snakemake_lint_has_no_findings():
         "--config",
         f"sampleTable={TEST_SAMPLE_SHEET.as_posix()}",
         "resultsDir=testdata/results",
+        "downsampleResultsDir=testdata/results/downsampling",
     ]
     result = subprocess.run(
         cmd,

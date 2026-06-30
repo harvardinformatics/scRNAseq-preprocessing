@@ -25,6 +25,7 @@ ALLOWED_EMPTYDROP_METHODS = {"tenx", "emptydrops"}
 ALLOWED_DECON_METHODS = {"soupx", "cellbender_fromraw"}
 ALLOWED_DOUBLET_METHODS = {"doubletfinder", "scdblfinder"}
 ALLOWED_POSTHOC_METHODS = {"threshold", "mad"}
+ALLOWED_WORKFLOW_MODES = {"preprocess", "preprocess_and_downsample", "downsample_only"}
 
 
 def load_default_config(repo_root):
@@ -92,7 +93,12 @@ def test_default_config_has_required_keys_and_valid_values():
     assert REQUIRED_CONFIG_KEYS <= set(config)
     assert config["conda-channel-priority"] == "strict"
     assert isinstance(config["sampleTable"], str) and config["sampleTable"]
+    assert config.get("workflow_mode") in ALLOWED_WORKFLOW_MODES
     assert isinstance(config["workflow_seed"], int) and not isinstance(config["workflow_seed"], bool)
+    assert isinstance(config["nDownsampleReplicates"], int) and config["nDownsampleReplicates"] > 0
+    assert isinstance(config["downsampleRate"], (int, float)) and 0 < config["downsampleRate"] <= 1
+    assert isinstance(config["downsampleSeuratObjectDir"], str) and config["downsampleSeuratObjectDir"]
+    assert isinstance(config["downsampleResultsDir"], str) and config["downsampleResultsDir"]
 
     for key, allowed_values in [
         ("emptydrop_removal_methods", ALLOWED_EMPTYDROP_METHODS),
@@ -120,6 +126,8 @@ def test_default_config_has_required_keys_and_valid_values():
         (lambda cfg: cfg.update({"min_nfeature": 0}), "min_nfeature must be a positive integer", True),
         (lambda cfg: cfg.update({"max_mtdna": 101}), "max_mtdna must be a number between 0 and 100", True),
         (lambda cfg: cfg.update({"resultsDir": ""}), "resultsDir must be a non-empty string", False),
+        (lambda cfg: cfg.update({"workflow_mode": "bad_mode"}), "workflow_mode must be one of", True),
+        (lambda cfg: cfg.update({"workflow_mode": "downsample_only", "downsampleRate": 1.5}), "downsampleRate must be > 0 and <= 1", True),
     ],
 )
 def test_invalid_config_fails_early_with_clear_message(tmp_path, mutate, expected_message, override_results_dir):
@@ -180,3 +188,38 @@ def test_emptydrop_method_variant_excludes_emptydrops_specific_targets(tmp_path)
     assert str(results_dir / "seurat_filtered" / "filtered_seurat_tenx_test_markergenes.csv") in output
     assert str(results_dir / "soupx" / "seurat_soupx_tenx_test_markergenes.csv") in output
     assert "emptydrops" not in output
+
+
+def test_downsample_only_mode_builds_dag_from_external_seurat_objects(tmp_path):
+    repo_root = Path(__file__).resolve().parents[1]
+    config = {
+        "conda-channel-priority": "strict",
+        "workflow_mode": "downsample_only",
+        "downsampleSeuratObjectDir": "testdata/downsampling/seurat_objects",
+        "downsampleResultsDir": (tmp_path / "downsampling").as_posix(),
+        "nDownsampleReplicates": 2,
+        "downsampleRate": 0.5,
+        "workflowSeed": 12345,
+    }
+    config_file = write_config(tmp_path / "downsample_only.yaml", config)
+
+    result = run_snakemake(repo_root, config_file, None, "-np")
+    output = combined_output(result)
+
+    assert result.returncode == 0, output
+    assert "bootstrap_clusters" in output
+    assert str(tmp_path / "downsampling" / "filtered_seurat_tenx_test_clusterdownsampling.tsv") in output
+    assert "tenx2seuratrds" not in output
+
+
+def test_preprocess_and_downsample_mode_adds_downsample_targets(tmp_path):
+    output, results_dir = run_variant_dry_run(
+        tmp_path,
+        workflow_mode="preprocess_and_downsample",
+        downsampleTargets=["filtered_seurat_tenx_test"],
+        downsampleResultsDir=(tmp_path / "downsampling").as_posix(),
+    )
+
+    assert "tenx2seuratrds" in output
+    assert "bootstrap_clusters" in output
+    assert str(tmp_path / "downsampling" / "filtered_seurat_tenx_test_clusterdownsampling.tsv") in output

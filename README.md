@@ -20,6 +20,17 @@ In order to assess different tools and options for pre-processing scRNA-seq data
 | Mouse | C57BL/6 | L8TX_190509_01_E09 | striatum, striatal amygdala | cells | Chromium 10x 3' Gene Expression v3 | NovaSeq6000 | 13,475 | 82,801 | 3,400 | [nemo](https://assets.nemoarchive.org/dat-qg7n1b0) | [run1](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v2/mouse/raw/STR/NW_TX0007-8_S01_L003.fastq.tar);[run2](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v2/mouse/raw/STR/NW_TX0010-7_S01_L003.fastq.tar) | 2 runs on same library |
 | Mouse | C57BL/6 | L8TX_210204_01_H05 | olfactory region: main and accessory olfactory bulbs | cells | Chromium 10x 3' Gene Expression v3 | NovaSeq6000 | 10,895 | 136,593 | 3,971 | [nemo](https://assets.nemoarchive.org/dat-qg7n1b0) | [fastq]( https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v3/mouse/raw/NW_TX0109-4_S01_L003-001.fastq.tar) | |
 
+
+## Workflow modes
+
+The main Snakemake entrypoint supports three `workflow_mode` values in `config/config.yaml` or via `--config`:
+
+- `preprocess`: run the preprocessing workflow only. This is the default and preserves the original behavior.
+- `preprocess_and_downsample`: run preprocessing and then downsample the generated Seurat `.rds` outputs with `workflow/rules/downsample_clusters.smk`.
+- `downsample_only`: skip preprocessing and run downsampling on existing Seurat `.rds` files from `downsampleSeuratObjectDir`.
+
+Downsampling outputs are written to `downsampleResultsDir`, defaulting to `results/downsampling`. Use `downsampleTargets` to restrict downsampling to selected Seurat object basenames, or leave it as `all` to use every available input for the selected mode.
+
 ## Tests
 For information on how to run the test suite, or run the workflow in test mode, see tests/README.md.
 

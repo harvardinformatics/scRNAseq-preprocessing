@@ -1,13 +1,28 @@
+import re
+from pathlib import Path
+
 import pandas as pd
 import yaml
 
 include: "rules/common.smk"
 
 validated_config = validate_workflow_config(config)
-sampleinfo = pd.read_table(config["sampleTable"], dtype={"sampleid": str})
-sampleinfo = validate_sample_sheet(sampleinfo, config["sampleTable"])
+WORKFLOW_MODE = validated_config["workflow_mode"]
+RUN_PREPROCESS = WORKFLOW_MODE in {"preprocess", "preprocess_and_downsample"}
+RUN_DOWNSAMPLE = WORKFLOW_MODE in {"preprocess_and_downsample", "downsample_only"}
+RESULTS_DIR = config.get("resultsDir", "results").rstrip("/")
+WORKFLOW_SEED = int(config.get("workflow_seed", config.get("workflowSeed", 12345)))
+config.setdefault("min_nfeature", 1)
+config.setdefault("min_ncount", 1)
+config.setdefault("max_mtdna", 100)
 
-SAMPLES = list(sampleinfo.loc[:, "sampleid"])
+if RUN_PREPROCESS:
+    sampleinfo = pd.read_table(config["sampleTable"], dtype={"sampleid": str})
+    sampleinfo = validate_sample_sheet(sampleinfo, config["sampleTable"])
+    SAMPLES = list(sampleinfo.loc[:, "sampleid"])
+else:
+    sampleinfo = pd.DataFrame({"sampleid": [], "tenx_datadir": []})
+    SAMPLES = []
 
 with open("profiles/slurm/config.yaml") as f:
     slurm_profile_config = yaml.safe_load(f)
@@ -16,88 +31,120 @@ DECON_METHODS = validated_config["decon_methods"]
 DOUBLET_METHODS = validated_config["doublet_methods"]
 EMPTYDROP_METHODS = validated_config["emptydrop_methods"]
 POSTHOC_METHODS = validated_config["posthoc_methods"]
-RESULTS_DIR = config.get("resultsDir", "results").rstrip("/")
-WORKFLOW_SEED = int(config["workflow_seed"])
+DOWNSAMPLE_RESULTS_DIR = config.get("downsampleResultsDir", f"{RESULTS_DIR}/downsampling").rstrip("/")
+DOWNSAMPLE_SEURAT_OBJECT_DIR = config.get(
+    "downsampleSeuratObjectDir",
+    config.get("seuratObjectDir", "seurat_objects"),
+).rstrip("/")
 
-TENX_TARGETS = expand(
-    f"{RESULTS_DIR}/seurat_filtered/filtered_seurat_tenx_{{sample}}_markergenes.csv",
-    sample=SAMPLES,
-)
-EMPTYDROPS_TARGETS = (
-    expand(
-        f"{RESULTS_DIR}/emptydrops/filtered_seurat_emptydrops_{{sample}}_markergenes.csv",
-        sample=SAMPLES,
-    )
-    if "emptydrops" in EMPTYDROP_METHODS
+TENX_PREFIXES = (
+    expand("seurat_filtered/filtered_seurat_tenx_{sample}", sample=SAMPLES)
+    if RUN_PREPROCESS
     else []
 )
-SOUPX_TARGETS = (
+EMPTYDROPS_PREFIXES = (
+    expand("emptydrops/filtered_seurat_emptydrops_{sample}", sample=SAMPLES)
+    if RUN_PREPROCESS and "emptydrops" in EMPTYDROP_METHODS
+    else []
+)
+SOUPX_PREFIXES = (
     expand(
-        f"{RESULTS_DIR}/soupx/seurat_soupx_{{empty_method}}_{{sample}}_markergenes.csv",
+        "soupx/seurat_soupx_{empty_method}_{sample}",
         sample=SAMPLES,
         empty_method=EMPTYDROP_METHODS,
     )
-    if "soupx" in DECON_METHODS
+    if RUN_PREPROCESS and "soupx" in DECON_METHODS
     else []
 )
-CELLBENDER_TARGETS = (
-    expand(
-        f"{RESULTS_DIR}/cellbender_fromraw/seurat_cellbender_fromraw_{{sample}}_markergenes.csv",
-        sample=SAMPLES,
-    )
-    if "cellbender_fromraw" in DECON_METHODS
+CELLBENDER_PREFIXES = (
+    expand("cellbender_fromraw/seurat_cellbender_fromraw_{sample}", sample=SAMPLES)
+    if RUN_PREPROCESS and "cellbender_fromraw" in DECON_METHODS
     else []
 )
-SOUPX_DOUBLET_TARGETS = (
+SOUPX_DOUBLET_PREFIXES = (
     expand(
-        f"{RESULTS_DIR}/{{doublet_method}}/seurat_{{doublet_method}}_soupx_{{empty_method}}_{{sample}}_markergenes.csv",
+        "{doublet_method}/seurat_{doublet_method}_soupx_{empty_method}_{sample}",
         sample=SAMPLES,
         doublet_method=DOUBLET_METHODS,
         empty_method=EMPTYDROP_METHODS,
     )
-    if "soupx" in DECON_METHODS
+    if RUN_PREPROCESS and "soupx" in DECON_METHODS
     else []
 )
-CELLBENDER_DOUBLET_TARGETS = (
+CELLBENDER_DOUBLET_PREFIXES = (
     expand(
-        f"{RESULTS_DIR}/{{doublet_method}}/seurat_{{doublet_method}}_cellbender_fromraw_{{sample}}_markergenes.csv",
+        "{doublet_method}/seurat_{doublet_method}_cellbender_fromraw_{sample}",
         sample=SAMPLES,
         doublet_method=DOUBLET_METHODS,
     )
-    if "cellbender_fromraw" in DECON_METHODS
+    if RUN_PREPROCESS and "cellbender_fromraw" in DECON_METHODS
     else []
 )
-SOUPX_POSTHOC_TARGETS = (
+SOUPX_POSTHOC_PREFIXES = (
     expand(
-        f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_{{posthoc_method}}_{{doublet_method}}_soupx_{{empty_method}}_{{sample}}_markergenes.csv",
+        "posthocfilter/seurat_posthocfilt_{posthoc_method}_{doublet_method}_soupx_{empty_method}_{sample}",
         sample=SAMPLES,
         posthoc_method=POSTHOC_METHODS,
         doublet_method=DOUBLET_METHODS,
         empty_method=EMPTYDROP_METHODS,
     )
-    if "soupx" in DECON_METHODS
+    if RUN_PREPROCESS and "soupx" in DECON_METHODS
     else []
 )
-CELLBENDER_POSTHOC_TARGETS = (
+CELLBENDER_POSTHOC_PREFIXES = (
     expand(
-        f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_{{posthoc_method}}_{{doublet_method}}_cellbender_fromraw_{{sample}}_markergenes.csv",
+        "posthocfilter/seurat_posthocfilt_{posthoc_method}_{doublet_method}_cellbender_fromraw_{sample}",
         sample=SAMPLES,
         posthoc_method=POSTHOC_METHODS,
         doublet_method=DOUBLET_METHODS,
     )
-    if "cellbender_fromraw" in DECON_METHODS
+    if RUN_PREPROCESS and "cellbender_fromraw" in DECON_METHODS
     else []
 )
-ALL_TARGETS = (
-    TENX_TARGETS
-    + EMPTYDROPS_TARGETS
-    + SOUPX_TARGETS
-    + CELLBENDER_TARGETS
-    + SOUPX_DOUBLET_TARGETS
-    + CELLBENDER_DOUBLET_TARGETS
-    + SOUPX_POSTHOC_TARGETS
-    + CELLBENDER_POSTHOC_TARGETS
+PREPROCESS_PREFIXES = (
+    TENX_PREFIXES
+    + EMPTYDROPS_PREFIXES
+    + SOUPX_PREFIXES
+    + CELLBENDER_PREFIXES
+    + SOUPX_DOUBLET_PREFIXES
+    + CELLBENDER_DOUBLET_PREFIXES
+    + SOUPX_POSTHOC_PREFIXES
+    + CELLBENDER_POSTHOC_PREFIXES
 )
+PREPROCESS_MARKER_TARGETS = marker_targets(PREPROCESS_PREFIXES)
+PREPROCESS_SEURAT_TARGETS = rds_targets(PREPROCESS_PREFIXES)
+
+
+if RUN_DOWNSAMPLE:
+    if WORKFLOW_MODE == "downsample_only":
+        DOWNSAMPLE_INPUTS_BY_TARGET = downsample_inputs_from_external_dir()
+    else:
+        DOWNSAMPLE_INPUTS_BY_TARGET = downsample_inputs_from_preprocess_outputs()
+    DOWNSAMPLE_INPUTS_BY_TARGET = select_downsample_inputs(DOWNSAMPLE_INPUTS_BY_TARGET)
+    if not DOWNSAMPLE_INPUTS_BY_TARGET:
+        raise ValueError(
+            "No Seurat RDS inputs were found for downsampling. "
+            "For downsample_only mode, set downsampleSeuratObjectDir to a directory containing *.rds files."
+        )
+else:
+    DOWNSAMPLE_INPUTS_BY_TARGET = {}
+
+DOWNSAMPLE_TARGETS = [
+    f"{DOWNSAMPLE_RESULTS_DIR}/{target}_clusterdownsampling.tsv"
+    for target in sorted(DOWNSAMPLE_INPUTS_BY_TARGET)
+]
+DOWNSAMPLE_TARGET_REGEX = (
+    "|".join(re.escape(target) for target in sorted(DOWNSAMPLE_INPUTS_BY_TARGET))
+    if DOWNSAMPLE_INPUTS_BY_TARGET
+    else r"[^/]+"
+)
+
+ALL_TARGETS = []
+if RUN_PREPROCESS:
+    ALL_TARGETS.extend(PREPROCESS_MARKER_TARGETS)
+if RUN_DOWNSAMPLE:
+    ALL_TARGETS.extend(DOWNSAMPLE_TARGETS)
+
 
 default_target: True
 
@@ -119,3 +166,4 @@ include: "rules/soupx_emptydrops.smk"
 include: "rules/posthocfilter_mad.smk"
 include: "rules/posthocfilter_threshold.smk"
 include: "rules/markers.smk"
+include: "rules/downsample_clusters.smk"

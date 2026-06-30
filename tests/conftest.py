@@ -11,6 +11,18 @@ def pytest_addoption(parser):
         help="optional value to pass to Snakemake --conda-prefix for --run-workflow",
     )
     parser.addoption(
+        "--run-downsample-rule",
+        action="store_true",
+        default=False,
+        help="execute the downsample_clusters Snakemake rule on one downsampling test fixture",
+    )
+    parser.addoption(
+        "--run-downsample-workflow",
+        action="store_true",
+        default=False,
+        help="execute the full downsampling Snakemake workflow on downsampling testdata",
+    )
+    parser.addoption(
         "--run-conda-validation",
         action="store_true",
         default=False,

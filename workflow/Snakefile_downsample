@@ -1,0 +1,57 @@
+import re
+
+RESULTS_DIR = config.get("resultsDir", "results").rstrip("/")
+DOWNSAMPLE_RESULTS_DIR = config.get("downsampleResultsDir", RESULTS_DIR).rstrip("/")
+DOWNSAMPLE_SEURAT_OBJECT_DIR = config.get(
+    "downsampleSeuratObjectDir",
+    config.get("seuratObjectDir", "seurat_objects"),
+).rstrip("/")
+
+
+def select_downsample_inputs(inputs_by_target):
+    requested = config.get("downsampleTargets", "all")
+    if requested == "all" or requested == ["all"]:
+        return dict(inputs_by_target)
+
+    missing = sorted(set(requested) - set(inputs_by_target))
+    if missing:
+        raise ValueError(
+            "downsampleTargets contains unknown target(s): "
+            + ", ".join(missing)
+            + "; available targets are: "
+            + ", ".join(sorted(inputs_by_target))
+        )
+    return {target: inputs_by_target[target] for target in requested}
+
+
+DOWNSAMPLE_INPUTS_BY_TARGET = {
+    target: f"{DOWNSAMPLE_SEURAT_OBJECT_DIR}/{target}.rds"
+    for target in sorted(
+        glob_wildcards(f"{DOWNSAMPLE_SEURAT_OBJECT_DIR}/{{target}}.rds").target
+    )
+}
+DOWNSAMPLE_INPUTS_BY_TARGET = select_downsample_inputs(DOWNSAMPLE_INPUTS_BY_TARGET)
+if not DOWNSAMPLE_INPUTS_BY_TARGET:
+    raise ValueError(
+        "No Seurat RDS inputs were found for downsampling. "
+        "Set downsampleSeuratObjectDir to a directory containing *.rds files."
+    )
+
+DOWNSAMPLE_TARGETS = [
+    f"{DOWNSAMPLE_RESULTS_DIR}/{target}_clusterdownsampling.tsv"
+    for target in sorted(DOWNSAMPLE_INPUTS_BY_TARGET)
+]
+DOWNSAMPLE_TARGET_REGEX = "|".join(
+    re.escape(target) for target in sorted(DOWNSAMPLE_INPUTS_BY_TARGET)
+)
+
+
+default_target: True
+
+
+rule all:
+    input:
+        DOWNSAMPLE_TARGETS
+
+
+include: "rules/downsample_clusters.smk"

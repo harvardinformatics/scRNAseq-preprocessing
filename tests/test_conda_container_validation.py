@@ -14,6 +14,7 @@ TEST_SAMPLE_SHEET = Path("testdata/samplesheet_test.tsv")
 EXPECTED_ENV_FILES = {
     "cellbender.yml",
     "doubletfinder.yml",
+    "downsample_clusters.yml",
     "emptydrops.yml",
     "posthocfilter.yml",
     "scdblfinder.yml",
@@ -26,6 +27,7 @@ CONTAINER_RE = re.compile(r"container:\s*\n\s*['\"]([^'\"]+)['\"]")
 R_IMPORTS_BY_ENV = {
     "cellbender.yml": ["Seurat", "tidyverse", "bluster"],
     "doubletfinder.yml": ["Seurat", "tidyverse", "remotes", "fields", "Matrix", "KernSmooth", "ROCR", "igraph", "glmGamPoi", "bluster"],
+    "downsample_clusters.yml": ["Seurat", "tidyverse", "glmGamPoi"],
     "emptydrops.yml": ["Seurat", "tidyverse", "DropletUtils", "scater", "glmGamPoi", "bluster", "Matrix", "R.utils"],
     "posthocfilter.yml": ["Seurat", "tidyverse", "glmGamPoi", "scater", "bluster"],
     "scdblfinder.yml": ["Seurat", "tidyverse", "scDblFinder", "glmGamPoi", "bluster"],
