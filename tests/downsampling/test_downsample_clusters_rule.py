@@ -12,7 +12,7 @@ from utils import (
 SAMPLE = "filtered_seurat_tenx_test"
 
 
-def test_bootstrap_clusters_rule_produces_stability_table(tmp_path, pytestconfig):
+def test_downsample_clusters_rule_produces_stability_table(tmp_path, pytestconfig):
     if not pytestconfig.getoption("--run-downsample-rule"):
         pytest.skip("use --run-downsample-rule to execute the downsample_clusters rule")
 

@@ -23,7 +23,8 @@ def test_testdata_dry_run_builds_expected_dag():
     output = combined_output(result)
 
     assert result.returncode == 0, output
-    assert "bootstrap_clusters" in output
+    assert "downsample_cluster_replicate" in output
+    assert "downsample_clusters" in output
     for sample in TEST_SAMPLES:
         expected = TEST_RESULTS_DIR / f"{sample}_clusterdownsampling.tsv"
         assert expected.as_posix() in output

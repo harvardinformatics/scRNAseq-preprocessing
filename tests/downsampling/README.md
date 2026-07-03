@@ -6,7 +6,7 @@ The default pytest suite uses the Seurat RDS fixtures in `testdata/downsampling/
 pytest tests/downsampling -q
 ```
 
-The dry-run test checks that the DAG includes the `bootstrap_clusters` rule and expected testdata outputs without executing R code.
+The dry-run test checks that the DAG includes the `downsample_cluster_replicate` (per-replicate scatter) and `downsample_clusters` (summary gather) rules and expected testdata outputs without executing R code.
 
 To execute the single workflow rule on one test fixture, run the optional rule test:
 

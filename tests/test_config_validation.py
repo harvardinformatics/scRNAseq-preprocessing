@@ -207,7 +207,8 @@ def test_downsample_only_mode_builds_dag_from_external_seurat_objects(tmp_path):
     output = combined_output(result)
 
     assert result.returncode == 0, output
-    assert "bootstrap_clusters" in output
+    assert "downsample_cluster_replicate" in output
+    assert "downsample_clusters" in output
     assert str(tmp_path / "downsampling" / "filtered_seurat_tenx_test_clusterdownsampling.tsv") in output
     assert "tenx2seuratrds" not in output
 
@@ -221,5 +222,6 @@ def test_preprocess_and_downsample_mode_adds_downsample_targets(tmp_path):
     )
 
     assert "tenx2seuratrds" in output
-    assert "bootstrap_clusters" in output
+    assert "downsample_cluster_replicate" in output
+    assert "downsample_clusters" in output
     assert str(tmp_path / "downsampling" / "filtered_seurat_tenx_test_clusterdownsampling.tsv") in output
