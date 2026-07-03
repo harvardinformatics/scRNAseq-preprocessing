@@ -19,7 +19,7 @@ rule downsample_cluster_replicate:
         replicate=r"\d+"
     resources:
         mem_mb=lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
-        runtime=lambda wildcards, attempt: int(240 * (2 ** (attempt - 1)))
+        runtime=lambda wildcards, attempt: int(30 * (2 ** (attempt - 1)))
     shell:
         """
         SCRNASEQ_DOWNSAMPLE_SEED={params.seed} Rscript {input.script} {input.seurat_object} {output.tsv} {wildcards.replicate} {params.downsample_rate} > {log} 2>&1
