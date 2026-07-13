@@ -52,6 +52,7 @@ rule combine_markers:
     shell:
         """
         SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script} {output} {input.markers} > {log} 2>&1
+        rm -f {input.markers}
         rm -f {params.cluster_ids}
         rm -f {params.nclusters}
         rm -rf {params.manifest}
