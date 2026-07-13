@@ -35,4 +35,4 @@ PATH_TO_MY_CONDA_ENVS=$1
 
 snakemake --unlock --snakefile workflow/Snakefile --configfile config/config.yaml --use-conda --workflow-profile profiles/slurm --profile cannon
 
-snakemake --conda-prefix $PATH_TO_MY_CONDA_ENVS --snakefile workflow/Snakefile --rerun-incomplete --retries 2 --jobs 200 --latency-wait 120 --configfile config/config.yaml --use-conda --workflow-profile profiles/slurm --profile cannon
+snakemake --conda-prefix $PATH_TO_MY_CONDA_ENVS --snakefile workflow/Snakefile --rerun-incomplete --retries 2 --keep-going --jobs 1500 --max-jobs-per-timespan "10/1s" --max-status-checks-per-second 5 --latency-wait 120 --configfile config/config.yaml --use-conda --workflow-profile profiles/slurm --profile cannon

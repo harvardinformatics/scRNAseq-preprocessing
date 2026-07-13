@@ -1,16 +1,16 @@
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 3) {
-  stop("Usage: downsample_cluster_replicate.R <seurat_rds> <output_tsv> <replicate> [downsample_rate]", call. = FALSE)
+  stop("Usage: downsample_clusters.R <seurat_rds> <output_tsv> <n_replicates> [downsample_rate]", call. = FALSE)
 }
 
 seurat_rds <- args[1]
 output <- args[2]
-replicate <- suppressWarnings(as.integer(args[3]))
+n_replicates <- suppressWarnings(as.integer(args[3]))
 downsample_rate <- if (length(args) >= 4) as.numeric(args[4]) else as.numeric(Sys.getenv("SCRNASEQ_DOWNSAMPLE_RATE", "0.8"))
 workflow_seed <- suppressWarnings(as.integer(Sys.getenv("SCRNASEQ_DOWNSAMPLE_SEED", "12345")))
 
-if (length(replicate) != 1 || is.na(replicate) || replicate < 1) {
-  stop("replicate must be a positive integer", call. = FALSE)
+if (length(n_replicates) != 1 || is.na(n_replicates) || n_replicates < 1) {
+  stop("n_replicates must be a positive integer", call. = FALSE)
 }
 if (length(downsample_rate) != 1 || is.na(downsample_rate) || downsample_rate <= 0 || downsample_rate > 1) {
   stop("downsample_rate must be > 0 and <= 1", call. = FALSE)
@@ -57,19 +57,13 @@ SubSampleReSCTSeuratObject <- function(seurat_obj, subrate, replicate_seed) {
     drop = TRUE
   ]
 
-  sct_args <- list(object = subsampled_seurat, verbose = FALSE)
   if ("percent.mt" %in% colnames(subsampled_seurat@meta.data)) {
-    sct_args$vars.to.regress <- "percent.mt"
+    subsampled_seurat <- SCTransform(subsampled_seurat, vars.to.regress = "percent.mt", verbose = FALSE)
+  } else {
+    subsampled_seurat <- SCTransform(subsampled_seurat, verbose = FALSE)
   }
-  subsampled_seurat <- do.call(SCTransform, sct_args)
   subsampled_seurat <- RunPCA(subsampled_seurat, verbose = FALSE)
   pca_dims <- seq_len(min(30, ncol(Embeddings(subsampled_seurat, "pca"))))
-  subsampled_seurat <- RunUMAP(
-    subsampled_seurat,
-    dims = pca_dims,
-    seed.use = replicate_seed,
-    verbose = FALSE
-  )
   subsampled_seurat <- FindNeighbors(subsampled_seurat, dims = pca_dims, verbose = FALSE)
   subsampled_seurat <- FindClusters(
     subsampled_seurat,
@@ -122,9 +116,22 @@ if (!"seurat_clusters" %in% colnames(seurat_obj@meta.data)) {
   stop("Input Seurat object is missing required metadata column: seurat_clusters", call. = FALSE)
 }
 
-replicate_seed <- workflow_seed + replicate
-subsampled_obj <- SubSampleReSCTSeuratObject(seurat_obj, downsample_rate, replicate_seed)
-jaccard_max_stats <- GetJaccardMaxByCluster(subsampled_obj, replicate)
+replicate_results <- vector("list", n_replicates)
+for (replicate in seq_len(n_replicates)) {
+  t0 <- Sys.time()
+  replicate_seed <- workflow_seed + replicate
+  subsampled_obj <- SubSampleReSCTSeuratObject(seurat_obj, downsample_rate, replicate_seed)
+  replicate_results[[replicate]] <- GetJaccardMaxByCluster(subsampled_obj, replicate)
+  rm(subsampled_obj)
+  gc(verbose = FALSE)
+  message(sprintf(
+    "[%s] replicate %d/%d done: %.1f sec",
+    format(Sys.time(), "%H:%M:%S"), replicate, n_replicates,
+    as.numeric(Sys.time() - t0, units = "secs")
+  ))
+}
+
+jaccard_max_stats <- dplyr::bind_rows(replicate_results)
 
 dir.create(dirname(output), showWarnings = FALSE, recursive = TRUE)
 write_tsv(jaccard_max_stats, output)
