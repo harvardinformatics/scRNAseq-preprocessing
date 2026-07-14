@@ -20,16 +20,6 @@ on:
         required: false
         default: false
         type: boolean
-      run_downsample_rule:
-        description: "Run the downsampling rule execution smoke test"
-        required: false
-        default: false
-        type: boolean
-      run_downsample_workflow:
-        description: "Run the full downsampling workflow test"
-        required: false
-        default: false
-        type: boolean
 
 jobs:
   pytest:
@@ -59,10 +49,9 @@ jobs:
             snakemake-conda-${{ runner.os }}-
 
       - name: Run tests
-        run: pytest tests -q
+        run: pytest tests -q --run-downsample-scaling
 
   downsample-rule:
-    if: github.event_name == 'workflow_dispatch' && inputs.run_downsample_rule
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -92,7 +81,6 @@ jobs:
         run: pytest tests/downsampling --run-downsample-rule -q
 
   downsample-workflow:
-    if: github.event_name == 'workflow_dispatch' && inputs.run_downsample_workflow
     runs-on: ubuntu-latest
     defaults:
       run:

@@ -23,6 +23,12 @@ def pytest_addoption(parser):
         help="execute the full downsampling Snakemake workflow on downsampling testdata",
     )
     parser.addoption(
+        "--run-downsample-scaling",
+        action="store_true",
+        default=False,
+        help="run downsample_clusters on small and medium fixtures and check runtime scales reasonably",
+    )
+    parser.addoption(
         "--run-conda-validation",
         action="store_true",
         default=False,
