@@ -31,17 +31,17 @@ jobs:
       SNAKEMAKE_CONDA_FRONTEND: mamba
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Create test environment
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: environment.yml
           cache-environment: true
           cache-downloads: true
 
       - name: Cache Snakemake rule environments
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .snakemake/conda
           key: snakemake-conda-${{ runner.os }}-${{ hashFiles('workflow/envs/*.yml') }}
@@ -60,17 +60,17 @@ jobs:
       SNAKEMAKE_CONDA_FRONTEND: mamba
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Create test environment
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: environment.yml
           cache-environment: true
           cache-downloads: true
 
       - name: Cache Snakemake rule environments
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .snakemake/conda
           key: snakemake-conda-${{ runner.os }}-${{ hashFiles('workflow/envs/*.yml') }}
@@ -89,17 +89,17 @@ jobs:
       SNAKEMAKE_CONDA_FRONTEND: mamba
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Create test environment
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: environment.yml
           cache-environment: true
           cache-downloads: true
 
       - name: Cache Snakemake rule environments
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .snakemake/conda
           key: snakemake-conda-${{ runner.os }}-${{ hashFiles('workflow/envs/*.yml') }}
@@ -131,10 +131,10 @@ jobs:
       SNAKEMAKE_CONDA_FRONTEND: mamba
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Create test environment
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: environment.yml
           cache-environment: true
@@ -151,10 +151,10 @@ jobs:
         shell: bash -el {0}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Create test environment
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: environment.yml
           cache-environment: true
@@ -176,10 +176,10 @@ jobs:
       GITHUB_PAT: ${{ github.token }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Create test environment
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: environment.yml
           cache-environment: true
