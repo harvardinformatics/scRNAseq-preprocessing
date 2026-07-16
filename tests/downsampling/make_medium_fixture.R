@@ -37,16 +37,21 @@ sampled_clusters <- unname(clusters[sampled_source_idx])
 
 sampled_counts@x <- sampled_counts@x + rpois(length(sampled_counts@x), lambda = 0.02)
 
-# Sparse jitter alone doesn't reliably de-duplicate resampled cells: a cell with few
+# Sparse jitter alone doesn't reliably separate resampled cells: a cell with few
 # nonzero genes has a non-negligible chance every jitter draw is 0 (P(X=0) ~= 0.98
 # per entry with lambda=0.02), leaving repeat draws of the same source cell exactly
-# identical. Guarantee distinctness directly for any source index drawn more than
-# once by bumping one entry per repeat draw.
-repeat_draw <- which(duplicated(sampled_source_idx))
-for (k in seq_along(repeat_draw)) {
-  col <- repeat_draw[k]
-  row <- ((k - 1) %% nrow(sampled_counts)) + 1
-  sampled_counts[row, col] <- sampled_counts[row, col] + 1
+# identical. Deterministically perturb each repeat draw so it diverges from both the
+# first (unbumped) draw of that source and every other draw of it: bump the Nth draw
+# of a source at row N-1. Keying the row on the per-source occurrence rank (not a
+# global counter) keeps rows distinct within each source group without wrapping, so
+# repeat draws of one source never land on the same row.
+occ_rank <- ave(sampled_source_idx, sampled_source_idx, FUN = seq_along)
+repeat_pos <- which(occ_rank > 1L)
+if (length(repeat_pos) > 0L) {
+  bump_row <- occ_rank[repeat_pos] - 1L
+  stopifnot(max(bump_row) <= nrow(sampled_counts))
+  bump_idx <- cbind(bump_row, repeat_pos)
+  sampled_counts[bump_idx] <- sampled_counts[bump_idx] + 1
 }
 
 colnames(sampled_counts) <- paste0("cell_", seq_len(ncol(sampled_counts)))
