@@ -35,17 +35,11 @@ sampled_source_idx <- unlist(lapply(names(per_cluster_target), function(cl) {
 sampled_counts <- counts[, sampled_source_idx, drop = FALSE]
 sampled_clusters <- unname(clusters[sampled_source_idx])
 
-jitter <- matrix(
-  rpois(length(sampled_counts), lambda = 0.02),
-  nrow = nrow(sampled_counts),
-  ncol = ncol(sampled_counts)
-)
-sampled_counts <- sampled_counts + jitter
+sampled_counts@x <- sampled_counts@x + rpois(length(sampled_counts@x), lambda = 0.02)
 colnames(sampled_counts) <- paste0("cell_", seq_len(ncol(sampled_counts)))
 
 new_obj <- CreateSeuratObject(counts = sampled_counts)
-pct_mt <- PercentageFeatureSet(new_obj, pattern = "^MT-")
-new_obj$percent.mt <- if (is.data.frame(pct_mt)) pct_mt[[1]] else unname(pct_mt)
+new_obj$percent.mt <- PercentageFeatureSet(new_obj, pattern = "^MT-")[[1]]
 new_obj$seurat_clusters <- factor(sampled_clusters, levels = levels(clusters))
 Idents(new_obj) <- new_obj$seurat_clusters
 
