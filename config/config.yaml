@@ -1,6 +1,7 @@
 conda-channel-priority: "strict"
 
 sampleTable: "samplesheet.tsv"
+workflow_mode: "preprocess_and_downsample" # {"preprocess", "preprocess_and_downsample", "downsample_only"}
 workflow_seed: 12345
 
 emptydrop_removal_methods: ["tenx","emptydrops"]
@@ -10,3 +11,9 @@ posthoc_methods: ["threshold", "mad"]
 min_nfeature: 200
 min_ncount: 500
 max_mtdna: 5
+
+downsampleSeuratObjectDir: "seurat_objects"
+downsampleResultsDir: "results/downsampling"
+downsampleTargets: "all"
+nDownsampleReplicates: 100
+downsampleRate: 0.8

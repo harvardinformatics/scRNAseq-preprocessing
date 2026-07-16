@@ -14,6 +14,7 @@ RULE_DIR = Path("workflow/rules")
 TEST_SAMPLE_SHEET = Path("testdata/samplesheet_test.tsv")
 EXPECTED_ENV_FILES = {
     "doubletfinder.yml",
+    "downsample_clusters.yml",
     "emptydrops.yml",
     "posthocfilter.yml",
     "scdblfinder.yml",
@@ -26,6 +27,7 @@ CELLBENDER_CONTAINER_URI = "docker://us.gcr.io/broad-dsde-methods/cellbender@sha
 
 R_IMPORTS_BY_ENV = {
     "doubletfinder.yml": ["Seurat", "tidyverse", "remotes", "fields", "Matrix", "KernSmooth", "ROCR", "igraph", "glmGamPoi", "bluster"],
+    "downsample_clusters.yml": ["Seurat", "tidyverse", "glmGamPoi"],
     "emptydrops.yml": ["Seurat", "tidyverse", "DropletUtils", "scater", "glmGamPoi", "bluster", "Matrix", "R.utils"],
     "posthocfilter.yml": ["Seurat", "tidyverse", "glmGamPoi", "scater", "bluster"],
     "scdblfinder.yml": ["Seurat", "tidyverse", "scDblFinder", "glmGamPoi", "bluster"],

@@ -8,6 +8,7 @@ from pathlib import Path
 SAMPLE_ID = "test"
 TEST_SAMPLE_SHEET = Path("testdata/samplesheet_test.tsv")
 RESULTS_DIR = "testdata/results"
+DOWNSAMPLE_RESULTS_DIR = f"{RESULTS_DIR}/downsampling"
 EXPECTED_OUTPUTS = Path(__file__).with_name("test_sample_rule_output_files.txt")
 
 
@@ -28,6 +29,7 @@ def run_snakemake(repo_root, *extra_args):
         "--config",
         f"sampleTable={TEST_SAMPLE_SHEET.as_posix()}",
         f"resultsDir={RESULTS_DIR}",
+        f"downsampleResultsDir={DOWNSAMPLE_RESULTS_DIR}",
     ]
     return subprocess.run(
         cmd,

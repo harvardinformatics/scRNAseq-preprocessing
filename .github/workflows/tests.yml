@@ -31,17 +31,17 @@ jobs:
       SNAKEMAKE_CONDA_FRONTEND: mamba
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Create test environment
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: environment.yml
           cache-environment: true
           cache-downloads: true
 
       - name: Cache Snakemake rule environments
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .snakemake/conda
           key: snakemake-conda-${{ runner.os }}-${{ hashFiles('workflow/envs/*.yml', 'workflow/envs/*.pin.txt') }}
@@ -49,7 +49,65 @@ jobs:
             snakemake-conda-${{ runner.os }}-
 
       - name: Run tests
-        run: pytest tests -q
+        run: pytest tests -q --run-downsample-scaling
+
+  downsample-rule:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      SNAKEMAKE_CONDA_FRONTEND: mamba
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Create test environment
+        uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+          cache-downloads: true
+
+      - name: Cache Snakemake rule environments
+        uses: actions/cache@v6
+        with:
+          path: .snakemake/conda
+          key: snakemake-conda-${{ runner.os }}-${{ hashFiles('workflow/envs/*.yml') }}
+          restore-keys: |
+            snakemake-conda-${{ runner.os }}-
+
+      - name: Run downsampling rule smoke test
+        run: pytest tests/downsampling --run-downsample-rule -q
+
+  downsample-workflow:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      SNAKEMAKE_CONDA_FRONTEND: mamba
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Create test environment
+        uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+          cache-downloads: true
+
+      - name: Cache Snakemake rule environments
+        uses: actions/cache@v6
+        with:
+          path: .snakemake/conda
+          key: snakemake-conda-${{ runner.os }}-${{ hashFiles('workflow/envs/*.yml') }}
+          restore-keys: |
+            snakemake-conda-${{ runner.os }}-
+
+      - name: Run full downsampling workflow test
+        run: pytest tests/downsampling --run-downsample-workflow -q
 
   conda-validation:
     if: github.event_name == 'workflow_dispatch' && inputs.run_conda_validation
@@ -59,6 +117,7 @@ jobs:
       matrix:
         env_name:
           - doubletfinder.yml
+          - downsample_clusters.yml
           - emptydrops.yml
           - posthocfilter.yml
           - scdblfinder.yml
@@ -71,10 +130,10 @@ jobs:
       SNAKEMAKE_CONDA_FRONTEND: mamba
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Create test environment
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: environment.yml
           cache-environment: true
@@ -91,10 +150,10 @@ jobs:
         shell: bash -el {0}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Create test environment
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: environment.yml
           cache-environment: true
@@ -116,10 +175,10 @@ jobs:
       GITHUB_PAT: ${{ github.token }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Create test environment
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: environment.yml
           cache-environment: true
