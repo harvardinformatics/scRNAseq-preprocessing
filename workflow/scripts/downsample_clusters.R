@@ -57,11 +57,8 @@ SubSampleReSCTSeuratObject <- function(seurat_obj, subrate, replicate_seed) {
     drop = TRUE
   ]
 
-  if ("percent.mt" %in% colnames(subsampled_seurat@meta.data)) {
-    subsampled_seurat <- SCTransform(subsampled_seurat, vars.to.regress = "percent.mt", verbose = FALSE)
-  } else {
-    subsampled_seurat <- SCTransform(subsampled_seurat, verbose = FALSE)
-  }
+  vars_to_regress <- if ("percent.mt" %in% colnames(subsampled_seurat@meta.data)) "percent.mt" else NULL
+  subsampled_seurat <- SCTransform(subsampled_seurat, vars.to.regress = vars_to_regress, verbose = FALSE)
   subsampled_seurat <- RunPCA(subsampled_seurat, verbose = FALSE)
   pca_dims <- seq_len(min(30, ncol(Embeddings(subsampled_seurat, "pca"))))
   subsampled_seurat <- FindNeighbors(subsampled_seurat, dims = pca_dims, verbose = FALSE)
@@ -80,17 +77,17 @@ GetJaccardMaxByCluster <- function(seurat_obj, bootstrap) {
     bootstrap_number = integer()
   )
 
+  dat <- tibble::tibble(
+    cell_id = names(seurat_obj@active.ident),
+    cluster = seurat_obj$seurat_clusters
+  ) %>%
+    tidyr::nest(data = -cluster) %>%
+    dplyr::arrange(cluster)
+
   for (original_cluster in unique(seurat_obj$presub_clusters)) {
     barcodes <- rownames(
       subset(seurat_obj@meta.data, presub_clusters == original_cluster)
     )
-
-    dat <- tibble::tibble(
-      cell_id = names(seurat_obj@active.ident),
-      cluster = seurat_obj$seurat_clusters
-    ) %>%
-      tidyr::nest(data = -cluster) %>%
-      dplyr::arrange(cluster)
 
     maxstat <- dat %>%
       dplyr::mutate(

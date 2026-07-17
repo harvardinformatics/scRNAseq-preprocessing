@@ -86,6 +86,59 @@ def expected_output_for_sample(sample, results_dir=TEST_RESULTS_DIR):
     return Path(results_dir) / f"{sample}_clusterdownsampling.tsv"
 
 
+def run_downsample_clusters_rule(
+    sample,
+    tmp_path,
+    pytestconfig,
+    root,
+    n_replicates=2,
+    downsample_rate=0.5,
+    workflow_seed=12345,
+    timeout=1800,
+):
+    seurat_dir = root / "testdata" / "downsampling" / "seurat_objects"
+    results_dir = tmp_path / sample / "results"
+    target = results_dir / f"{sample}_clusterdownsampling.tsv"
+
+    cmd = [
+        snakemake_executable(),
+        str(target),
+        "--snakefile",
+        "workflow/Snakefile",
+        "--configfile",
+        "config/config.yaml",
+        "--config",
+        "workflow_mode=downsample_only",
+        f"downsampleSeuratObjectDir={seurat_dir.as_posix()}",
+        f"downsampleResultsDir={results_dir.as_posix()}",
+        f"nDownsampleReplicates={n_replicates}",
+        f"downsampleRate={downsample_rate}",
+        f"workflowSeed={workflow_seed}",
+        "--profile",
+        "none",
+        "--workflow-profile",
+        "none",
+        "--executor",
+        "local",
+        "--cores",
+        "1",
+        "--jobs",
+        "1",
+        "--latency-wait",
+        "30",
+        "--rerun-incomplete",
+        "--use-conda",
+    ]
+    conda_prefix = pytestconfig.getoption("--snakemake-conda-prefix")
+    if conda_prefix:
+        cmd.extend(["--conda-prefix", conda_prefix])
+
+    result = run_command(cmd, root, timeout=timeout)
+    assert result.returncode == 0, combined_output(result)
+    assert target.exists(), f"missing rule output: {target}"
+    return target
+
+
 def reference_output_for_sample(sample):
     return REFERENCE_ROOT / REFERENCE_RESULTS_DIR / f"{sample}_clusterdownsampling.tsv"
 
@@ -97,13 +150,13 @@ def read_tsv(path):
         return reader.fieldnames or [], rows
 
 
-def assert_stability_table(path):
+def assert_stability_table(path, expected_bootstraps=EXPECTED_BOOTSTRAPS):
     columns, rows = read_tsv(path)
     assert rows, f"{path}: downsample output is empty"
     assert columns == EXPECTED_COLUMNS
 
     bootstraps = {int(row["bootstrap_number"]) for row in rows}
-    assert bootstraps == EXPECTED_BOOTSTRAPS
+    assert bootstraps == expected_bootstraps
     for row in rows:
         assert row["clusterid"] != ""
         max_jaccard = float(row["max_jaccard"])
