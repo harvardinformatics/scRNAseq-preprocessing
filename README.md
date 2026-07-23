@@ -9,17 +9,52 @@ The primary objective of our methods assessment is to evaluate the sensitivity o
     <img src="./docs/img/analysisworkflow.png" alt="workflow schematic" height="600"/>
 </p>
 
-## Data
-In order to assess different tools and options for pre-processing scRNA-seq data, we downloaded publicly available data sets that were generated with 10x Chromium chemistry and sequenced on various contemporary Illumina sequencing instruments. We focused on datasets generated for mouse (*Mus musculus*) as the genome assembly and annotation are of exceptionally high quality, and there are no issues regarding patient anonymity that restrict data access as in the case human data. Below are the datasets we analyzed.
+## How to use
 
-| Species | Strain | Sample ID | Tissue | Droplet Input |Sequencing Chemistry | Platform | Estimated Cells | Mean Reads Per Cell | Median Genes Per Cell | Data Source | Fastq Link(s) | Notes |
-|---------|--------|-----------|--------|---------------|----------------------|----------|-----------------|---------------------|-----------------------|-------------|---------------|-------|
-| Mouse |   NA   | neuron_10k_v3 |cortex, hippocampus and sub ventricular zone | cells | Chromium 10x 3' Gene Expression v3 | NovaSeq | 11,831 | 30,184 | 3,684 | [10x](https://www.10xgenomics.com/datasets/10-k-brain-cells-from-an-e-18-mouse-v-3-chemistry-3-standard-3-0-0) | same as data source | E18 developmental stage |
-| Mouse | C57BL/6 | L8TX_181211_01_G12 | primary motor cortex | cells | Chromium 10x 3' Gene Expression v3 | NovaSeq6000 | 8,913 |114,812 | 6,691 |[nemo](https://assets.nemoarchive.org/dat-qg7n1b0) |[run1](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v3/mouse/raw/NW_TX0002-29_S01_L003-001.fastq.tar);[run2](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v3/mouse/raw/NW_TX0006-1_S01_L003.fastq.tar) |2 runs on same library |
-| Mouse | C57BL/6 | L8TX_190327_01_E04 | caudal nucleus, pallidum | cells | Chromium 10x 3' Gene Expression v3 | NovaSeq6000 | 18,173 | 77,393 | 2,734 | [nemo](https://assets.nemoarchive.org/dat-qg7n1b0) | [run1](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v2/mouse/raw/PAL/NW_TX0007-5_S01_L003.fastq.tar);[run2](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v3/mouse/raw/NW_TX0010-5_S01_L003.fastq.tar) | 2 runs on same library |
-| Mouse | C57BL/6 | L8TX_190509_01_E09 | striatum, striatal amygdala | cells | Chromium 10x 3' Gene Expression v3 | NovaSeq6000 | 13,475 | 82,801 | 3,400 | [nemo](https://assets.nemoarchive.org/dat-qg7n1b0) | [run1](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v2/mouse/raw/STR/NW_TX0007-8_S01_L003.fastq.tar);[run2](https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v2/mouse/raw/STR/NW_TX0010-7_S01_L003.fastq.tar) | 2 runs on same library |
-| Mouse | C57BL/6 | L8TX_210204_01_H05 | olfactory region: main and accessory olfactory bulbs | cells | Chromium 10x 3' Gene Expression v3 | NovaSeq6000 | 10,895 | 136,593 | 3,971 | [nemo](https://assets.nemoarchive.org/dat-qg7n1b0) | [fastq]( https://data.nemoarchive.org/biccn/grant/u19_zeng/zeng/transcriptome/scell/10x_v3/mouse/raw/NW_TX0109-4_S01_L003-001.fastq.tar) | |
+### Input data
 
+The workflow starts from the per-sample count-matrix outputs produced by [10x Genomics Cell Ranger `count`](https://www.10xgenomics.com/support/software/cell-ranger). For each sample you supply a data directory laid out like a Cell Ranger `count` result, containing:
+
+- `filtered_feature_bc_matrix/` — with `barcodes.tsv.gz`, `features.tsv.gz`, and `matrix.mtx.gz`
+- `raw_feature_bc_matrix/` — with `barcodes.tsv.gz`, `features.tsv.gz`, and `matrix.mtx.gz`
+- `raw_feature_bc_matrix.h5`
+
+Both the filtered and the raw (unfiltered) matrices are required: the raw matrix drives the ambient-RNA removal (SoupX, CellBender) and empty-droplet (emptyDrops) steps. Any tool that emits matrices in this Cell Ranger–style layout can be used, not only Cell Ranger itself. Point each sample at the directory that *directly* contains the three entries above (in a Cell Ranger run, that is the sample's `outs/` directory).
+
+### Sample sheet
+
+Samples are declared in a **tab-separated** sample sheet with two required columns, one row per sample:
+
+| Column | Description |
+|--------|-------------|
+| `sampleid` | Unique identifier for the sample; used to name that sample's output files. |
+| `tenx_datadir` | Path to the sample's Cell Ranger–style data directory (absolute, or relative to the working directory). |
+
+For example (`samplesheet.tsv`):
+
+```
+sampleid	tenx_datadir
+neuron_10k_v3	/data/neuron_10k_v3/outs
+L8TX_181211_01_G12	/data/L8TX_181211_01_G12/outs
+```
+
+Tell the workflow where the sample sheet is with the `sampleTable` key in `config/config.yaml` (default `samplesheet.tsv`), or override it on the command line with `--config sampleTable=/path/to/samplesheet.tsv`. The sample sheet is validated before the run starts: missing columns, blank or duplicate `sampleid` values, and `tenx_datadir` paths that do not exist or are missing any of the required matrices above all fail fast with an explanatory error.
+
+### Running the workflow
+
+Edit `config/config.yaml` to set `sampleTable`, the desired `workflow_mode` (see [Workflow modes](#workflow-modes)), and the preprocessing options, then run Snakemake against `workflow/Snakefile`. A minimal local run:
+
+```
+snakemake \
+    --snakefile workflow/Snakefile \
+    --configfile config/config.yaml \
+    --use-conda \
+    --cores 8
+```
+
+`--use-conda` is required: each rule provisions its own pinned conda environment from `workflow/envs/`. Any config value can be overridden without editing the file, e.g. `--config workflow_mode=preprocess sampleTable=samplesheet.tsv`.
+
+On an HPC cluster, add a Snakemake profile so jobs are submitted to the scheduler instead of run locally — for example `--workflow-profile profiles/slurm --profile cannon` for the bundled SLURM / Harvard Cannon profiles. See `scrnaseq_preprocess_slurmrunner.sh` for a complete SLURM submission example.
 
 ## Workflow modes
 
@@ -33,4 +68,3 @@ Downsampling outputs are written to `downsampleResultsDir`, defaulting to `resul
 
 ## Tests
 For information on how to run the test suite, or run the workflow in test mode, see tests/README.md.
-
