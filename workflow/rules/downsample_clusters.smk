@@ -18,7 +18,10 @@ rule downsample_clusters:
     wildcard_constraints:
         downsample_target=DOWNSAMPLE_TARGET_REGEX
     resources:
-        mem_mb=lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
+        # One job runs all replicates (subset + SCTransform + recluster) for a target,
+        # so peak memory tracks the input object size (~19x observed: 2.1 GB rds -> 41 GB).
+        # Scale by input size (floor 32 GB) so large datasets clear attempt 1.
+        mem_mb=lambda wildcards, input, attempt: int(max(32000, 24 * input.size_mb) * (2 ** (attempt - 1))),
         runtime=lambda wildcards, attempt: int(270 * (2 ** (attempt - 1)))
     shell:
         """

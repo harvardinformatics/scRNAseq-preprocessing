@@ -38,7 +38,20 @@ soup_channel <- SoupX::setClusters(soup_channel,
 soup_channel <- setDR(soup_channel, 
                 DR=Seurat::Embeddings(seurat_base, "umap"))
 set.seed(WORKFLOW_SEED)
-soup_channel <- autoEstCont(soup_channel)
+# autoEstCont aborts when it estimates an extremely high contamination fraction
+# (> 0.8), treating it as a likely estimation failure. Across many datasets this
+# hard stop kills otherwise-recoverable samples. Fall back to forceAccept = TRUE so
+# the estimated fraction is used and the sample proceeds, with a clear warning.
+soup_channel <- tryCatch(
+  autoEstCont(soup_channel),
+  error = function(e) {
+    message(
+      "autoEstCont failed (", conditionMessage(e),
+      "); retrying with forceAccept = TRUE."
+    )
+    autoEstCont(soup_channel, forceAccept = TRUE)
+  }
+)
 corrected_counts <- adjustCounts(soup_channel,roundToInt=TRUE)
 seurat_soupx <- CreateSeuratObject(counts = corrected_counts)
 rm(filtered_matrix, raw_matrix, seurat_base, soup_channel, corrected_counts)
