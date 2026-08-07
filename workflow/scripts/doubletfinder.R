@@ -1,3 +1,12 @@
+# SCALABILITY NOTE: doubletFinder() augments the full dataset with ~25% synthetic doublets
+# and then builds a DENSE pairwise distance matrix (fields::rdist) over all cells. That matrix
+# is O(N^2): ~78 GB at 77k cells, ~132 GB at 100k, ~298 GB at 150k, ~530 GB at 200k. paramSweep
+# is not the driver (it caps at a 10k-cell subsample); the main classification step is. This is
+# inherent to the DoubletFinder algorithm and cannot be tuned away here, so for large datasets
+# (roughly >100k cells, e.g. emptyDrops outputs) prefer scDblFinder (the workflow's other
+# doublet_removal_method), which does not materialize a full distance matrix and scales far
+# better. Memory for this rule is provisioned by input size in workflow/rules/doubletfinder.smk.
+
 args <- commandArgs(trailingOnly = TRUE)
 seurat <- args[1]
 output <- args[2]
@@ -50,6 +59,7 @@ gc()
 
 seurat_singlets[["percent.mt"]] <- PercentageFeatureSet(seurat_singlets, pattern = "(?i)^mt-")
 seurat_singlets <- SCTransform(seurat_singlets, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
+require_min_cells_for_pca(seurat_singlets, context = "doubletfinder")
 seurat_singlets <- RunPCA(seurat_singlets, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_singlets <- RunUMAP(seurat_singlets, dims = 1:30, seed.use = WORKFLOW_SEED)
 seurat_singlets <- FindNeighbors(seurat_singlets, dims = 1:30)

@@ -18,11 +18,15 @@ rule downsample_clusters:
     wildcard_constraints:
         downsample_target=DOWNSAMPLE_TARGET_REGEX
     resources:
-        # One job runs all replicates (subset + SCTransform + recluster) for a target,
-        # so peak memory tracks the input object size (~19x observed: 2.1 GB rds -> 41 GB).
-        # Scale by input size (floor 32 GB) so large datasets clear attempt 1.
-        mem_mb=lambda wildcards, input, attempt: int(max(32000, 24 * input.size_mb) * (2 ** (attempt - 1))),
-        runtime=lambda wildcards, attempt: int(270 * (2 ** (attempt - 1)))
+        # All 100 replicates run serially in one job (rm + gc between iterations), so the
+        # job's peak memory is a SINGLE replicate's SCTransform footprint. Observed per-
+        # replicate peak is ~42 GB and does NOT track input rds size (small datasets such as
+        # cteleta are among the heaviest), so a flat baseline beats input-scaling here.
+        # Wall-time is ~100x the per-replicate cost (worst observed ~370 s/rep -> ~10.2 h).
+        # 64 GB / 15 h cover the worst case on attempt 1; OOM/TIMEOUT restarts are not
+        # reliably resubmitted, so baselines must not depend on the retry escalation.
+        mem_mb=lambda wildcards, attempt: int(64000 * (2 ** (attempt - 1))),
+        runtime=lambda wildcards, attempt: int(900 * (2 ** (attempt - 1)))
     shell:
         """
         SCRNASEQ_DOWNSAMPLE_SEED={params.seed} Rscript {input.script} {input.seurat_object} {output.tsv} {params.n_replicates} {params.downsample_rate} > {log} 2>&1

@@ -7,6 +7,29 @@ set_workflow_seed <- function(seed = Sys.getenv("SCRNASEQ_PREPROCESS_SEED", "123
   seed
 }
 
+# Guard against too-few-cells before RunPCA. PCA (npcs, default 50) and the
+# downstream UMAP/neighbor graph require more cells than principal components;
+# when QC/filtering removes nearly all cells (e.g. a very low-depth sample that
+# fails a fixed count/feature threshold) RunPCA aborts with a cryptic
+# "max(nu, nv) must be strictly less than min(nrow(A), ncol(A))" SVD error.
+# Call this immediately before RunPCA to fail with an actionable message instead.
+require_min_cells_for_pca <- function(seurat_obj, context = "", npcs = 50L) {
+  n_cells <- ncol(seurat_obj)
+  if (n_cells <= npcs) {
+    prefix <- if (nzchar(context)) paste0(context, ": ") else ""
+    stop(sprintf(
+      paste0(
+        "%sonly %d cell(s) remain - too few to compute %d principal components ",
+        "(RunPCA and downstream UMAP/clustering require more cells than PCs). ",
+        "This usually means upstream QC/filtering removed nearly all cells for this ",
+        "sample; consider dataset-specific thresholds or excluding this sample."
+      ),
+      prefix, n_cells, npcs
+    ), call. = FALSE)
+  }
+  invisible(n_cells)
+}
+
 add_silhouette_to_metadata <- function(
     seurat_obj,
     cluster_col = "seurat_clusters",

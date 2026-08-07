@@ -25,7 +25,7 @@ suppressPackageStartupMessages({
   library("Seurat")
   library("glmGamPoi")
 })
-options(future.globals.maxSize = 2 * 1024^3)
+options(future.globals.maxSize = 16 * 1024^3)
 
 JaccardSimilarity <- function(set1, set2) {
   intersect_length <- length(intersect(set1, set2))
@@ -112,6 +112,20 @@ seurat_obj <- readRDS(seurat_rds)
 if (!"seurat_clusters" %in% colnames(seurat_obj@meta.data)) {
   stop("Input Seurat object is missing required metadata column: seurat_clusters", call. = FALSE)
 }
+
+# Each replicate re-runs SCTransform/PCA/clustering from raw counts and only needs the
+# original cluster labels for the Jaccard comparison. The input also carries a full SCT
+# assay (a dense scale.data), PCA/UMAP embeddings and neighbor graphs from upstream
+# clustering; those would be pinned for the whole loop and re-copied into every subset(),
+# yet are never used here. Strip to a minimal counts-only object (measured ~36 -> ~30 GB
+# peak per replicate on a 77k-cell dataset; the gap grows with cell count). Results are
+# unchanged: SCTransform operates on the RNA counts, which are preserved exactly.
+keep_meta <- intersect(c("seurat_clusters", "percent.mt"), colnames(seurat_obj@meta.data))
+seurat_obj <- CreateSeuratObject(
+  counts = GetAssayData(seurat_obj, assay = "RNA", layer = "counts"),
+  meta.data = seurat_obj@meta.data[, keep_meta, drop = FALSE]
+)
+gc(verbose = FALSE)
 
 replicate_results <- vector("list", n_replicates)
 for (replicate in seq_len(n_replicates)) {

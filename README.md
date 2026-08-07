@@ -66,5 +66,11 @@ The main Snakemake entrypoint supports three `workflow_mode` values in `config/c
 
 Downsampling outputs are written to `downsampleResultsDir`, defaulting to `results/downsampling`. Use `downsampleTargets` to restrict downsampling to selected Seurat object basenames, or leave it as `all` to use every available input for the selected mode.
 
+## Scalability notes
+
+Most rules scale roughly linearly in cell count (dominated by the `SCTransform` working set), and per-rule memory requests in `workflow/rules/*.smk` are sized accordingly. One exception matters for large datasets:
+
+- **DoubletFinder memory grows as O(N²).** `doubletfinder` augments the full dataset with ~25% synthetic doublets and builds a dense pairwise distance matrix over all cells: roughly 78 GB at 77k cells, 132 GB at 100k, 298 GB at 150k, and 530 GB at 200k. This is inherent to the algorithm and cannot be tuned away. For large inputs (roughly >100k cells — e.g. emptyDrops cell calls, which are often much larger than the CellRanger filtered set) prefer **scDblFinder** via the `doublet_removal_methods` config, as it does not materialize a full distance matrix and scales far better.
+
 ## Tests
 For information on how to run the test suite, or run the workflow in test mode, see tests/README.md.
