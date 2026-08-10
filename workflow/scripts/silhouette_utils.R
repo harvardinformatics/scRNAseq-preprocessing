@@ -13,14 +13,17 @@ set_workflow_seed <- function(seed = Sys.getenv("SCRNASEQ_PREPROCESS_SEED", "123
 # fails a fixed count/feature threshold) RunPCA aborts with a cryptic
 # "max(nu, nv) must be strictly less than min(nrow(A), ncol(A))" SVD error.
 # Call this immediately before RunPCA to fail with an actionable message instead.
+# The message embeds the stable token "[LOW_QUALITY_SAMPLE]" so the post-workflow
+# quarantine step (workflow/scripts/quarantine_low_quality_samples.py) can detect
+# flagged samples from their logs; keep the token in sync with that script.
 require_min_cells_for_pca <- function(seurat_obj, context = "", npcs = 50L) {
   n_cells <- ncol(seurat_obj)
   if (n_cells <= npcs) {
     prefix <- if (nzchar(context)) paste0(context, ": ") else ""
     stop(sprintf(
       paste0(
-        "%sonly %d cell(s) remain - too few to compute %d principal components ",
-        "(RunPCA and downstream UMAP/clustering require more cells than PCs). ",
+        "%s[LOW_QUALITY_SAMPLE] only %d cell(s) remain - too few to compute %d principal ",
+        "components (RunPCA and downstream UMAP/clustering require more cells than PCs). ",
         "This usually means upstream QC/filtering removed nearly all cells for this ",
         "sample; consider dataset-specific thresholds or excluding this sample."
       ),

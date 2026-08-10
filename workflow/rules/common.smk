@@ -89,6 +89,27 @@ def validate_downsample_targets(config_values, errors):
         errors.append("downsampleTargets contains duplicate value(s): " + ", ".join(duplicates))
 
 
+def validate_excluded_samples(config_values, errors):
+    """Normalize the optional user-controlled excluded_samples list (default empty).
+
+    Sample IDs listed here are dropped from the DAG. Exclusion is explicit and visible so
+    nothing is skipped automatically (e.g. a re-sequenced library reusing a sample ID is
+    processed normally unless the user deliberately lists that ID here)."""
+    value = config_values.get("excluded_samples", [])
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        errors.append("excluded_samples must be a list of sample id strings")
+        return []
+    normalized = []
+    for item in value:
+        if not isinstance(item, str) or not item.strip():
+            errors.append("excluded_samples contains a non-string or empty value")
+            continue
+        normalized.append(item.strip())
+    return sorted(set(normalized))
+
+
 def validate_workflow_config(config_values):
     errors = []
     workflow_mode = config_values.get("workflow_mode", "preprocess")
@@ -150,6 +171,8 @@ def validate_workflow_config(config_values):
     if "resultsDir" in config_values:
         require_non_empty_string(config_values, "resultsDir", errors)
 
+    excluded_samples = validate_excluded_samples(config_values, errors)
+
     if errors:
         raise ValueError("Invalid workflow config: " + "; ".join(errors))
 
@@ -159,6 +182,7 @@ def validate_workflow_config(config_values):
         "decon_methods": decon_methods,
         "doublet_methods": doublet_methods,
         "posthoc_methods": posthoc_methods,
+        "excluded_samples": excluded_samples,
     }
 
 

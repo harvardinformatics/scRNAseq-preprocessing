@@ -36,3 +36,12 @@ PATH_TO_MY_CONDA_ENVS=$1
 snakemake --unlock --snakefile workflow/Snakefile --configfile config/config.yaml --use-conda --workflow-profile profiles/slurm --profile cannon
 
 snakemake --conda-prefix $PATH_TO_MY_CONDA_ENVS --snakefile workflow/Snakefile --rerun-incomplete --retries 2 --keep-going --jobs 1500 --max-jobs-per-timespan "10/1s" --max-status-checks-per-second 5 --latency-wait 120 --configfile config/config.yaml --use-conda --workflow-profile profiles/slurm --profile cannon
+snakemake_status=$?
+
+# On completion (whether or not every job succeeded), move outputs of any samples flagged
+# low-quality by the require_min_cells_for_pca guard (too few cells to cluster after
+# filtering) into results/low_quality_samples/, preserving the results subdirectory layout.
+python workflow/scripts/quarantine_low_quality_samples.py --results-dir results --samplesheet samplesheet.tsv
+
+# Preserve the workflow's exit status (the quarantine step should not mask a failed run).
+exit $snakemake_status
