@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -34,6 +35,12 @@ TOKEN = "[LOW_QUALITY_SAMPLE]"
 
 # Top-level results subdirectories that are never scanned as outputs and never moved.
 SKIP_DIRS = {"logs", "low_quality_samples", "low_quality_flags"}
+
+# Log subdirectories skipped when scanning for the token, purely for speed. The guard runs
+# only in the RunPCA scripts, so find_markers logs (the overwhelming majority - one per
+# cluster per prefix) can never carry the token. Skipping them is safe: at worst, if these
+# logs ever move, the scan just gets slower - it can never miss a real flag.
+SKIP_LOG_DIRS = {"markers"}
 
 
 def read_sample_ids(samplesheet: Path) -> list[str]:
@@ -59,6 +66,33 @@ def name_matches_sample(name: str, sid: str) -> bool:
     return re.search(rf"(?:^|[_/]){re.escape(sid)}(?:[_.]|$)", name) is not None
 
 
+def _token_log_names(logs_dir: Path) -> list[str]:
+    """Basenames of log files containing the token. Uses grep (fast over a large, networked
+    log tree - this workflow can produce tens of thousands of logs) and falls back to a
+    pure-Python scan if grep is unavailable."""
+    exclude_args = [f"--exclude-dir={d}" for d in SKIP_LOG_DIRS]
+    try:
+        result = subprocess.run(
+            ["grep", "-rlF", *exclude_args, TOKEN, str(logs_dir)],
+            capture_output=True, text=True, check=False,
+        )
+        # rc 0 = matches, 1 = no matches; anything else -> fall back.
+        if result.returncode in (0, 1):
+            return [Path(line).name for line in result.stdout.splitlines() if line]
+    except (FileNotFoundError, OSError):
+        pass
+    names: list[str] = []
+    for log_path in logs_dir.rglob("*.log"):
+        if any(part in SKIP_LOG_DIRS for part in log_path.relative_to(logs_dir).parts):
+            continue
+        try:
+            if TOKEN in log_path.read_text(errors="replace"):
+                names.append(log_path.name)
+        except OSError:
+            continue
+    return names
+
+
 def find_flagged_samples(results_dir: Path, sample_ids: list[str]) -> set[str]:
     logs_dir = results_dir / "logs"
     flagged: set[str] = set()
@@ -66,14 +100,9 @@ def find_flagged_samples(results_dir: Path, sample_ids: list[str]) -> set[str]:
         return flagged
     # Longest IDs first so the most specific sample name wins the attribution.
     ordered = sorted(sample_ids, key=len, reverse=True)
-    for log_path in logs_dir.rglob("*.log"):
-        try:
-            if TOKEN not in log_path.read_text(errors="replace"):
-                continue
-        except OSError:
-            continue
+    for name in _token_log_names(logs_dir):
         for sid in ordered:
-            if name_matches_sample(log_path.name, sid):
+            if name_matches_sample(name, sid):
                 flagged.add(sid)
                 break
     return flagged

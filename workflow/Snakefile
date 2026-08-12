@@ -199,3 +199,24 @@ include: "rules/posthocfilter_mad.smk"
 include: "rules/posthocfilter_threshold.smk"
 include: "rules/markers.smk"
 include: "rules/downsample_clusters.smk"
+
+
+# Post-workflow quarantine of low-quality samples. The require_min_cells_for_pca guard flags
+# samples with too few cells to cluster; this moves all of their outputs into
+# results/low_quality_samples/. It runs from BOTH handlers so it fires on completion whether
+# or not every job succeeded (flagged samples fail the guard, so such runs end via onerror).
+# It is intentionally not a rule: it moves other rules' outputs, which a rule cannot do
+# without fighting Snakemake's dependency tracking.
+_QUARANTINE_CMD = (
+    "python workflow/scripts/quarantine_low_quality_samples.py "
+    f'--results-dir "{RESULTS_DIR}" '
+    f"--samplesheet \"{config.get('sampleTable', 'samplesheet.tsv')}\""
+)
+
+
+onsuccess:
+    shell(_QUARANTINE_CMD)
+
+
+onerror:
+    shell(_QUARANTINE_CMD)
