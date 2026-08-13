@@ -201,22 +201,43 @@ include: "rules/markers.smk"
 include: "rules/downsample_clusters.smk"
 
 
-# Post-workflow quarantine of low-quality samples. The require_min_cells_for_pca guard flags
-# samples with too few cells to cluster; this moves all of their outputs into
-# results/low_quality_samples/. It runs from BOTH handlers so it fires on completion whether
-# or not every job succeeded (flagged samples fail the guard, so such runs end via onerror).
-# It is intentionally not a rule: it moves other rules' outputs, which a rule cannot do
-# without fighting Snakemake's dependency tracking.
-_QUARANTINE_CMD = (
-    "python workflow/scripts/quarantine_low_quality_samples.py "
-    f'--results-dir "{RESULTS_DIR}" '
-    f"--samplesheet \"{config.get('sampleTable', 'samplesheet.tsv')}\""
-)
+# Post-workflow finalization, run from BOTH handlers so it fires on completion regardless of
+# Snakemake's own (SLURM-executor-dependent) exit code:
+#   1. Quarantine low-quality samples - move all outputs of samples the require_min_cells_for_pca
+#      guard flagged (too few cells to cluster) into results/low_quality_samples/, and record
+#      them in flagged_samples.txt. This is intentionally not a rule: it moves other rules'
+#      outputs, which a rule cannot do without fighting Snakemake's dependency tracking.
+#   2. Verify completeness and DRIVE THE EXIT CODE - fail the run only if a required output is
+#      missing for a sample that was NOT flagged low quality (a real failure, e.g. an OOM that
+#      exhausted retries). Failures confined to flagged low-quality samples are excused.
+# sys.exit() in a handler deterministically sets Snakemake's process exit code in either
+# direction, so the runner batch job's COMPLETED/FAILED status reflects the true state even
+# when Snakemake would otherwise exit 0 on a terminal failure.
+def _finalize_run():
+    import subprocess
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    samplesheet = str(config.get("sampleTable", "samplesheet.tsv"))
+    _Path(RESULTS_DIR).mkdir(parents=True, exist_ok=True)
+    targets_file = _Path(RESULTS_DIR) / ".run_targets.txt"
+    targets_file.write_text("\n".join(ALL_TARGETS) + "\n")
+
+    subprocess.run([
+        _sys.executable, "workflow/scripts/quarantine_low_quality_samples.py",
+        "--results-dir", RESULTS_DIR, "--samplesheet", samplesheet,
+    ])
+    result = subprocess.run([
+        _sys.executable, "workflow/scripts/verify_run_complete.py",
+        "--results-dir", RESULTS_DIR, "--samplesheet", samplesheet,
+        "--targets-file", str(targets_file),
+    ])
+    _sys.exit(result.returncode)
 
 
 onsuccess:
-    shell(_QUARANTINE_CMD)
+    _finalize_run()
 
 
 onerror:
-    shell(_QUARANTINE_CMD)
+    _finalize_run()

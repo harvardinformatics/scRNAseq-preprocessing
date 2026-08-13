@@ -160,6 +160,16 @@ def main(argv=None) -> int:
 
     flagged_sorted = sorted(flagged)
     print(f"[quarantine] flagged low-quality sample(s): {', '.join(flagged_sorted)}")
+
+    # Write the flagged manifest BEFORE moving anything. It records what was detected and is
+    # also read by verify_run_complete.py to excuse these samples from the run's pass/fail
+    # decision; writing it first keeps that decision correct even if a later move errors.
+    dest_root = args.results_dir / args.dest_name
+    manifest = dest_root / "flagged_samples.txt"
+    if not args.dry_run:
+        dest_root.mkdir(parents=True, exist_ok=True)
+        manifest.write_text("\n".join(flagged_sorted) + "\n")
+
     moves = quarantine(args.results_dir, flagged, args.dest_name, args.dry_run)
     verb = "would move" if args.dry_run else "moved"
     for src, dest in moves:
@@ -167,13 +177,8 @@ def main(argv=None) -> int:
     print(f"[quarantine] {verb} {len(moves)} item(s) for {len(flagged)} flagged sample(s) "
           f"into {args.results_dir / args.dest_name}/")
 
-    # Advisory record only; does NOT drive the DAG. To skip these on future runs, add them
-    # to excluded_samples in config/config.yaml (an explicit, visible choice).
-    dest_root = args.results_dir / args.dest_name
-    manifest = dest_root / "flagged_samples.txt"
-    if not args.dry_run:
-        dest_root.mkdir(parents=True, exist_ok=True)
-        manifest.write_text("\n".join(flagged_sorted) + "\n")
+    # The manifest is advisory for the DAG: it does NOT exclude samples. To skip these on
+    # future runs, add them to excluded_samples in config/config.yaml (an explicit choice).
     print(f"[quarantine] advisory list {'would be ' if args.dry_run else ''}written to {manifest}")
     print("[quarantine] to skip these samples on future runs, add them to "
           "'excluded_samples' in config/config.yaml")
