@@ -317,3 +317,40 @@ def downsample_inputs_from_external_dir():
         target: f"{DOWNSAMPLE_SEURAT_OBJECT_DIR}/{target}.rds"
         for target in targets
     }
+
+
+def finalize_run(results_dir, all_targets, samplesheet, enabled):
+    """Post-run quarantine + completeness verification that drives the process exit code.
+
+    Runs from the Snakefile's onsuccess/onerror handlers. It (1) quarantines low-quality
+    samples and (2) verifies that every required target exists, failing the run only when a
+    required output is missing for a sample that was NOT flagged low quality. sys.exit() in a
+    handler deterministically sets Snakemake's exit code either way, so the runner batch job's
+    COMPLETED/FAILED state reflects the true outcome even when Snakemake would exit 0 on a
+    terminal failure.
+
+    `enabled` should be True only for non-local (SLURM) runs: the verification exists to
+    correct that executor's unreliable exit code, whereas local runs (tests, ad-hoc builds)
+    have reliable exit codes and may intentionally build only a subset of targets.
+    """
+    if not enabled:
+        return
+
+    import subprocess
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    _Path(results_dir).mkdir(parents=True, exist_ok=True)
+    targets_file = _Path(results_dir) / ".run_targets.txt"
+    targets_file.write_text("\n".join(all_targets) + "\n")
+
+    subprocess.run([
+        _sys.executable, "workflow/scripts/quarantine_low_quality_samples.py",
+        "--results-dir", results_dir, "--samplesheet", samplesheet,
+    ])
+    result = subprocess.run([
+        _sys.executable, "workflow/scripts/verify_run_complete.py",
+        "--results-dir", results_dir, "--samplesheet", samplesheet,
+        "--targets-file", str(targets_file),
+    ])
+    _sys.exit(result.returncode)

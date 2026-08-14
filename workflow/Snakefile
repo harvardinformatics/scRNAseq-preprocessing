@@ -201,43 +201,19 @@ include: "rules/markers.smk"
 include: "rules/downsample_clusters.smk"
 
 
-# Post-workflow finalization, run from BOTH handlers so it fires on completion regardless of
-# Snakemake's own (SLURM-executor-dependent) exit code:
-#   1. Quarantine low-quality samples - move all outputs of samples the require_min_cells_for_pca
-#      guard flagged (too few cells to cluster) into results/low_quality_samples/, and record
-#      them in flagged_samples.txt. This is intentionally not a rule: it moves other rules'
-#      outputs, which a rule cannot do without fighting Snakemake's dependency tracking.
-#   2. Verify completeness and DRIVE THE EXIT CODE - fail the run only if a required output is
-#      missing for a sample that was NOT flagged low quality (a real failure, e.g. an OOM that
-#      exhausted retries). Failures confined to flagged low-quality samples are excused.
-# sys.exit() in a handler deterministically sets Snakemake's process exit code in either
-# direction, so the runner batch job's COMPLETED/FAILED status reflects the true state even
-# when Snakemake would otherwise exit 0 on a terminal failure.
-def _finalize_run():
-    import subprocess
-    import sys as _sys
-    from pathlib import Path as _Path
-
-    samplesheet = str(config.get("sampleTable", "samplesheet.tsv"))
-    _Path(RESULTS_DIR).mkdir(parents=True, exist_ok=True)
-    targets_file = _Path(RESULTS_DIR) / ".run_targets.txt"
-    targets_file.write_text("\n".join(ALL_TARGETS) + "\n")
-
-    subprocess.run([
-        _sys.executable, "workflow/scripts/quarantine_low_quality_samples.py",
-        "--results-dir", RESULTS_DIR, "--samplesheet", samplesheet,
-    ])
-    result = subprocess.run([
-        _sys.executable, "workflow/scripts/verify_run_complete.py",
-        "--results-dir", RESULTS_DIR, "--samplesheet", samplesheet,
-        "--targets-file", str(targets_file),
-    ])
-    _sys.exit(result.returncode)
-
-
+# Post-workflow finalization (defined in rules/common.smk), run from BOTH handlers so it fires
+# on completion regardless of Snakemake's own exit code. It quarantines low-quality samples
+# and verifies completeness, then drives the process exit code so the runner batch job's
+# COMPLETED/FAILED status reflects the true outcome (a real failure, e.g. an OOM that exhausted
+# retries, fails the run; failures confined to flagged low-quality samples are excused).
+# It runs only for non-local (SLURM) executor runs, where the verification is needed to correct
+# that executor's unreliable exit code; local runs (tests, ad-hoc builds) have reliable exit
+# codes and may intentionally build only a subset of targets, so they are skipped.
 onsuccess:
-    _finalize_run()
+    finalize_run(RESULTS_DIR, ALL_TARGETS, str(config.get("sampleTable", "samplesheet.tsv")),
+                 getattr(workflow, "non_local_exec", False))
 
 
 onerror:
-    _finalize_run()
+    finalize_run(RESULTS_DIR, ALL_TARGETS, str(config.get("sampleTable", "samplesheet.tsv")),
+                 getattr(workflow, "non_local_exec", False))
