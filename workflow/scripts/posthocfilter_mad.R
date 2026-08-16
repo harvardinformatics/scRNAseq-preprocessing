@@ -36,9 +36,11 @@ rm(sce)
 gc(verbose = FALSE)
 seurat_filtered<- subset(seurat, cells = cells_to_keep)
 # subset() carries the upstream SCT assay, PCA/UMAP embeddings and neighbor graphs into the
-# filtered object; this rule recomputes them from RNA counts below (and re-derives percent.mt),
-# so rebuild a minimal counts-only object to avoid holding that baggage. Results are unchanged.
-seurat_filtered <- CreateSeuratObject(counts = GetAssayData(seurat_filtered, assay = "RNA", layer = "counts"))
+# filtered object; this rule recomputes them from RNA counts below. DietSeurat drops that
+# baggage (SCT assay, reductions, graphs) while preserving the RNA counts and full metadata.
+# Results are unchanged.
+DefaultAssay(seurat_filtered) <- "RNA"
+seurat_filtered <- DietSeurat(seurat_filtered, assays = "RNA", dimreducs = NULL, graphs = NULL)
 rm(seurat)
 gc(verbose = FALSE)
 
