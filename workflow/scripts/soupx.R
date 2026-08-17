@@ -33,18 +33,37 @@ seurat_base <- readRDS(seurat_base)
 soup_channel <- SoupX::SoupChannel(tod = raw_matrix,toc=filtered_matrix,
                 is10X = TRUE)
 soup_channel$tod <- raw
-soup_channel <- SoupX::setClusters(soup_channel, 
-                                   clusters = as.factor(Idents(seurat_base)))
-soup_channel <- setDR(soup_channel, 
-                DR=Seurat::Embeddings(seurat_base, "umap"))
+# seurat_base carries a full SCT assay and neighbor graphs, but only its cluster labels and
+# UMAP embedding are needed here. Extract those and drop the object before the memory-heavy
+# autoEstCont/adjustCounts steps so its baggage is not held throughout. Results are unchanged.
+soup_clusters <- as.factor(Idents(seurat_base))
+soup_umap <- Seurat::Embeddings(seurat_base, "umap")
+rm(seurat_base)
+gc()
+soup_channel <- SoupX::setClusters(soup_channel, clusters = soup_clusters)
+soup_channel <- setDR(soup_channel, DR = soup_umap)
 set.seed(WORKFLOW_SEED)
-soup_channel <- autoEstCont(soup_channel)
+# autoEstCont aborts when it estimates an extremely high contamination fraction
+# (> 0.8), treating it as a likely estimation failure. Across many datasets this
+# hard stop kills otherwise-recoverable samples. Fall back to forceAccept = TRUE so
+# the estimated fraction is used and the sample proceeds, with a clear warning.
+soup_channel <- tryCatch(
+  autoEstCont(soup_channel),
+  error = function(e) {
+    message(
+      "autoEstCont failed (", conditionMessage(e),
+      "); retrying with forceAccept = TRUE."
+    )
+    autoEstCont(soup_channel, forceAccept = TRUE)
+  }
+)
 corrected_counts <- adjustCounts(soup_channel,roundToInt=TRUE)
 seurat_soupx <- CreateSeuratObject(counts = corrected_counts)
-rm(filtered_matrix, raw_matrix, seurat_base, soup_channel, corrected_counts)
+rm(filtered_matrix, raw_matrix, soup_channel, corrected_counts)
 gc()
 seurat_soupx[["percent.mt"]] <- PercentageFeatureSet(seurat_soupx, pattern = "(?i)^mt-")
 seurat_soupx <- SCTransform(seurat_soupx, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
+require_min_cells_for_pca(seurat_soupx, context = "soupx")
 seurat_soupx <- RunPCA(seurat_soupx, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_soupx <- RunUMAP(seurat_soupx, dims = 1:30, seed.use = WORKFLOW_SEED)
 seurat_soupx <- FindNeighbors(seurat_soupx, dims = 1:30)

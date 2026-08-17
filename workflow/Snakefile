@@ -1,4 +1,5 @@
 import re
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -16,10 +17,29 @@ config.setdefault("min_nfeature", 1)
 config.setdefault("min_ncount", 1)
 config.setdefault("max_mtdna", 100)
 
+EXCLUDED_SAMPLES = validated_config["excluded_samples"]
 if RUN_PREPROCESS:
     sampleinfo = pd.read_table(config["sampleTable"], dtype={"sampleid": str})
     sampleinfo = validate_sample_sheet(sampleinfo, config["sampleTable"])
     SAMPLES = list(sampleinfo.loc[:, "sampleid"])
+    if EXCLUDED_SAMPLES:
+        present = [s for s in SAMPLES if s in EXCLUDED_SAMPLES]
+        absent = [s for s in EXCLUDED_SAMPLES if s not in SAMPLES]
+        if present:
+            print(
+                "[excluded_samples] skipping "
+                f"{len(present)} sample(s) from the DAG: {', '.join(present)}",
+                file=sys.stderr,
+            )
+        if absent:
+            print(
+                "[excluded_samples] note: "
+                f"{len(absent)} excluded id(s) are not in the sample sheet and were ignored: "
+                f"{', '.join(absent)}",
+                file=sys.stderr,
+            )
+        SAMPLES = [s for s in SAMPLES if s not in EXCLUDED_SAMPLES]
+        sampleinfo = sampleinfo[~sampleinfo["sampleid"].isin(EXCLUDED_SAMPLES)].reset_index(drop=True)
 else:
     sampleinfo = pd.DataFrame({"sampleid": [], "tenx_datadir": []})
     SAMPLES = []
@@ -126,6 +146,18 @@ if RUN_DOWNSAMPLE:
             "No Seurat RDS inputs were found for downsampling. "
             "For downsample_only mode, set downsampleSeuratObjectDir to a directory containing *.rds files."
         )
+    # Drop downsample targets belonging to excluded samples. In preprocess_and_downsample
+    # this is already handled via SAMPLES; it matters for downsample_only, where targets come
+    # from external .rds files rather than the (filtered) sample sheet.
+    if EXCLUDED_SAMPLES:
+        DOWNSAMPLE_INPUTS_BY_TARGET = {
+            target: path
+            for target, path in DOWNSAMPLE_INPUTS_BY_TARGET.items()
+            if not any(
+                re.search(rf"(?:^|[_/]){re.escape(s)}(?:[_.]|$)", target)
+                for s in EXCLUDED_SAMPLES
+            )
+        }
 else:
     DOWNSAMPLE_INPUTS_BY_TARGET = {}
 
@@ -167,3 +199,21 @@ include: "rules/posthocfilter_mad.smk"
 include: "rules/posthocfilter_threshold.smk"
 include: "rules/markers.smk"
 include: "rules/downsample_clusters.smk"
+
+
+# Post-workflow finalization (defined in rules/common.smk), run from BOTH handlers so it fires
+# on completion regardless of Snakemake's own exit code. It quarantines low-quality samples
+# and verifies completeness, then drives the process exit code so the runner batch job's
+# COMPLETED/FAILED status reflects the true outcome (a real failure, e.g. an OOM that exhausted
+# retries, fails the run; failures confined to flagged low-quality samples are excused).
+# It runs only for non-local (SLURM) executor runs, where the verification is needed to correct
+# that executor's unreliable exit code; local runs (tests, ad-hoc builds) have reliable exit
+# codes and may intentionally build only a subset of targets, so they are skipped.
+onsuccess:
+    finalize_run(RESULTS_DIR, ALL_TARGETS, str(config.get("sampleTable", "samplesheet.tsv")),
+                 getattr(workflow, "non_local_exec", False))
+
+
+onerror:
+    finalize_run(RESULTS_DIR, ALL_TARGETS, str(config.get("sampleTable", "samplesheet.tsv")),
+                 getattr(workflow, "non_local_exec", False))

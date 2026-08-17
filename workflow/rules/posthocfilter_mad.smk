@@ -16,7 +16,7 @@ rule posthocfilter_mad:
         decon_method="soupx",
         empty_method="tenx|emptydrops"
     resources:
-        mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
+        mem_mb = lambda wildcards, attempt: int(64000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
     params:
         seed=WORKFLOW_SEED
@@ -42,7 +42,7 @@ rule posthocfilter_mad_cellbender:
     wildcard_constraints:
         doublet_method="doubletfinder|scdblfinder"
     resources:
-        mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
+        mem_mb = lambda wildcards, attempt: int(64000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
     params:
         seed=WORKFLOW_SEED

@@ -32,9 +32,20 @@ low_umi     <- isOutlier(qc$sum, nmads = 3, type = "lower")
 low_feature <- isOutlier(qc$detected, nmads = 3, type = "lower")
 discard <- high_mito | low_umi | low_feature
 cells_to_keep <- colnames(seurat)[!discard]
+rm(sce)
+gc(verbose = FALSE)
 seurat_filtered<- subset(seurat, cells = cells_to_keep)
+# subset() carries the upstream SCT assay, PCA/UMAP embeddings and neighbor graphs into the
+# filtered object; this rule recomputes them from RNA counts below. DietSeurat drops that
+# baggage (SCT assay, reductions, graphs) while preserving the RNA counts and full metadata.
+# Results are unchanged.
+DefaultAssay(seurat_filtered) <- "RNA"
+seurat_filtered <- DietSeurat(seurat_filtered, assays = "RNA", dimreducs = NULL, graphs = NULL)
+rm(seurat)
+gc(verbose = FALSE)
 
 seurat_filtered[["percent.mt"]] <- PercentageFeatureSet(seurat_filtered, pattern = "(?i)^mt-")
+require_min_cells_for_pca(seurat_filtered, context = "posthocfilter_mad")
 seurat_filtered <- SCTransform(seurat_filtered, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_filtered <- RunPCA(seurat_filtered, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_filtered <- RunUMAP(seurat_filtered, dims = 1:30, seed.use = WORKFLOW_SEED)

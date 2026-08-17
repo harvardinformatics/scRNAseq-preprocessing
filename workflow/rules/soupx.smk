@@ -14,7 +14,7 @@ rule soupx:
     conda:
         "../envs/soupx.yml"
     resources:
-        mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
+        mem_mb = lambda wildcards, attempt: int(64000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
     params:
         seed=WORKFLOW_SEED

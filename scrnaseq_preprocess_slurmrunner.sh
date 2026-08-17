@@ -35,4 +35,7 @@ PATH_TO_MY_CONDA_ENVS=$1
 
 snakemake --unlock --snakefile workflow/Snakefile --configfile config/config.yaml --use-conda --workflow-profile profiles/slurm --profile cannon
 
-snakemake --conda-prefix $PATH_TO_MY_CONDA_ENVS --snakefile workflow/Snakefile --rerun-incomplete --retries 2 --keep-going --jobs 1500 --max-jobs-per-timespan "10/1s" --max-status-checks-per-second 5 --latency-wait 120 --configfile config/config.yaml --use-conda --workflow-profile profiles/slurm --profile cannon
+# Execution policy (retries, keep-going, job/submission throttling, latency-wait,
+# rerun-incomplete) lives in profiles/slurm/config.yaml, and low-quality-sample quarantine
+# runs from the Snakefile's onsuccess/onerror handlers - so both apply to any launcher.
+snakemake --conda-prefix $PATH_TO_MY_CONDA_ENVS --snakefile workflow/Snakefile --configfile config/config.yaml --use-conda --workflow-profile profiles/slurm --profile cannon

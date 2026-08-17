@@ -15,7 +15,7 @@ rule scdblfinder:
         decon_method="soupx",
         empty_method="tenx|emptydrops"
     resources:
-        mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
+        mem_mb = lambda wildcards, attempt: int(48000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
     params:
         seed=WORKFLOW_SEED
@@ -39,7 +39,7 @@ rule scdblfinder_cellbender:
     conda:
         "../envs/scdblfinder.yml"
     resources:
-        mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
+        mem_mb = lambda wildcards, attempt: int(48000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
     params:
         seed=WORKFLOW_SEED

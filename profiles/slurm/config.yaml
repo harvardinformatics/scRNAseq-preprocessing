@@ -1,13 +1,22 @@
 use-singularity: True
 singularity-args: "\"--nv\""
+
+# Execution policy (workflow-level, so it applies to every invocation regardless of the
+# launcher script). Submission/status-check rates are throttled to avoid overwhelming the
+# SLURM controller when thousands of jobs are queued.
 retries: 2
+keep-going: True
+jobs: 1500
+max-jobs-per-timespan: "10/1s"
+max-status-checks-per-second: 5
+latency-wait: 120
+rerun-incomplete: True
 
 set-threads:
     tenx2seuratrds: 1
     soupx: 1
     scdblfinder: 1
     emptydrops: 1
-    downsample_cluster_replicate: 1
     downsample_clusters: 1
 
 set-resources:
@@ -42,11 +51,6 @@ set-resources:
         cpus_per_task: 1
 
     posthocfilter:
-        nodes: 1
-        tasks: 1
-        cpus_per_task: 1
-
-    downsample_cluster_replicate:
         nodes: 1
         tasks: 1
         cpus_per_task: 1

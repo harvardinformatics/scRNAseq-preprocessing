@@ -30,6 +30,17 @@ seurat <- readRDS(seurat)
 
 seurat_filtered <- subset(seurat, subset = nFeature_RNA > min_nfeature & nCount_RNA > min_ncount & percent.mt < max_mtdna)
 
+# subset() carries the upstream SCT assay, PCA/UMAP embeddings and neighbor graphs into the
+# filtered object, but this rule recomputes all of them from RNA counts below. DietSeurat drops
+# that baggage (SCT assay, reductions, graphs) while preserving the RNA counts AND the full cell
+# metadata, so the stale results are not held alongside the fresh ones and the saved object
+# keeps its upstream metadata columns. Results are unchanged.
+DefaultAssay(seurat_filtered) <- "RNA"
+seurat_filtered <- DietSeurat(seurat_filtered, assays = "RNA", dimreducs = NULL, graphs = NULL)
+rm(seurat)
+gc(verbose = FALSE)
+
+require_min_cells_for_pca(seurat_filtered, context = "posthocfilter_threshold")
 seurat_filtered <- SCTransform(seurat_filtered, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_filtered <- RunPCA(seurat_filtered, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_filtered <- RunUMAP(seurat_filtered, dims = 1:30, seed.use = WORKFLOW_SEED)

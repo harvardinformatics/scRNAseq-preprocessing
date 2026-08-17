@@ -4,6 +4,14 @@ sampleTable: "samplesheet.tsv"
 workflow_mode: "preprocess_and_downsample" # {"preprocess", "preprocess_and_downsample", "downsample_only"}
 workflow_seed: 12345
 
+# Sample IDs to skip when building the workflow (they are dropped from the DAG, so their
+# outputs are neither generated nor regenerated). Use this to exclude samples flagged as
+# low quality after a run (see the run log and results/low_quality_samples/flagged_samples.txt)
+# or any sample you want to hold out. Exclusion is explicit and logged at startup - nothing
+# is skipped automatically. IMPORTANT: if you re-sequence a bad library and reuse its sample
+# ID in samplesheet.tsv, remove that ID from this list so the new data is processed.
+excluded_samples: []
+
 emptydrop_removal_methods: ["tenx","emptydrops"]
 ambient_decon_methods: ["soupx","cellbender_fromraw"]
 doublet_removal_methods: ["doubletfinder", "scdblfinder"]

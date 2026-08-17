@@ -16,7 +16,11 @@ rule doubletfinder:
         decon_method="soupx",
         empty_method="tenx|emptydrops"
     resources:
-        mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
+        # DoubletFinder's paramSweep (sct=TRUE) synthesizes ~25% artificial doublets and
+        # re-runs SCTransform across a pK sweep, so peak memory is a large multiple of the
+        # input object (~43x observed: 2.1 GB rds -> 92 GB). A flat baseline is either
+        # wasteful for small samples or fatal for large ones; scale by input size (floor 48 GB).
+        mem_mb = lambda wildcards, input, attempt: int(max(48000, 64 * input.size_mb) * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
     params:
         seed=WORKFLOW_SEED
@@ -41,7 +45,11 @@ rule doubletfinder_cellbender:
     conda:
         "../envs/doubletfinder.yml"
     resources:
-        mem_mb = lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
+        # DoubletFinder's paramSweep (sct=TRUE) synthesizes ~25% artificial doublets and
+        # re-runs SCTransform across a pK sweep, so peak memory is a large multiple of the
+        # input object (~43x observed: 2.1 GB rds -> 92 GB). A flat baseline is either
+        # wasteful for small samples or fatal for large ones; scale by input size (floor 48 GB).
+        mem_mb = lambda wildcards, input, attempt: int(max(48000, 64 * input.size_mb) * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
     params:
         seed=WORKFLOW_SEED

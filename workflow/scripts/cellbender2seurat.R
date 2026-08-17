@@ -22,9 +22,14 @@ write_cluster_metadata <- function(seurat_obj, nclusters_output, cluster_ids_out
 }
 
 mat <- Read_CellBender_h5_Mat(cellbender_h5)
-seurat <- CreateSeuratObject(mat)
+# CellBender's *_filtered.h5 can still contain a rare barcode whose counts were
+# all subtracted to zero during background removal. A zero-count cell yields
+# log_umi = log10(0) = -Inf, which makes SCTransform's make_cell_attr abort.
+# min.features = 1 drops only these empty barcodes and leaves all real cells intact.
+seurat <- CreateSeuratObject(mat, min.features = 1)
 seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "(?i)^mt-")
 seurat <- SCTransform(seurat, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
+require_min_cells_for_pca(seurat, context = "cellbender2seurat")
 seurat <- RunPCA(seurat, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat <- RunUMAP(seurat, dims = 1:30, seed.use = WORKFLOW_SEED)
 seurat <- FindNeighbors(seurat, dims = 1:30)
