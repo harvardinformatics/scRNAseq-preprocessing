@@ -62,6 +62,8 @@ mkdir -p "$(dirname "${output}")"
 printf 'fake raw cellbender output for %s\\n' "${input}" > "${output}"
 filtered="${output%.h5}_filtered.h5"
 printf 'fake filtered cellbender output for %s\\n' "${input}" > "${filtered}"
+report="${output%.h5}_report.html"
+printf '<html><body><h2>Automated assessment</h2><h2>Summary</h2><p>This learning curve looks normal.</p></body></html>\\n' > "${report}"
 """
 
 
@@ -86,6 +88,8 @@ def test_cellbender_rule_uses_cellbender_filtered_output_convention(tmp_path):
     results_dir = tmp_path / "results"
     base_output = results_dir / "cellbender" / "cellbender_test.h5"
     filtered_output = results_dir / "cellbender" / "cellbender_test_filtered.h5"
+    report_output = results_dir / "cellbender" / "cellbender_test_report.html"
+    status_output = results_dir / "cellbender" / "cellbender_test_adaptive_status.txt"
 
     env = os.environ.copy()
     env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
@@ -125,3 +129,9 @@ def test_cellbender_rule_uses_cellbender_filtered_output_convention(tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
     assert base_output.read_text().startswith("fake raw cellbender output")
     assert filtered_output.read_text().startswith("fake filtered cellbender output")
+    # The adaptive wrapper also produces the report and per-sample status; a normal-looking
+    # learning curve means the single initial run is kept, with no re-run.
+    assert "This learning curve looks normal" in report_output.read_text()
+    status = status_output.read_text()
+    assert "outcome\tNORMAL_FIRST_TRY" in status
+    assert "reran\tfalse" in status

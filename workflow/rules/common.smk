@@ -26,6 +26,9 @@ ALLOWED_PREFLIGHT_MODES = {"off", "warn", "skip", "error"}
 DEFAULT_PREFLIGHT_MIN_CELLS = 100
 DEFAULT_PREFLIGHT_MODE = "skip"
 DEFAULT_MIN_RAW_TO_CELL_RATIO = 2
+# CellBender's own default learning rate; the adaptive re-run uses exactly half of this.
+DEFAULT_CELLBENDER_LEARNING_RATE = 0.0001
+DEFAULT_CELLBENDER_ADAPTIVE_RERUN = True
 
 
 def require_non_empty_string(config_values, key, errors):
@@ -43,6 +46,19 @@ def require_positive_int(config_values, key, errors):
 def require_optional_positive_int(config_values, key, errors):
     if key in config_values:
         require_positive_int(config_values, key, errors)
+
+
+def require_optional_positive_number(config_values, key, errors):
+    if key not in config_values:
+        return
+    value = config_values.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+        errors.append(f"{key} must be a positive number")
+
+
+def require_optional_bool(config_values, key, errors):
+    if key in config_values and not isinstance(config_values.get(key), bool):
+        errors.append(f"{key} must be a boolean (true or false)")
 
 
 def validate_method_list(config_values, key, allowed_values, errors):
@@ -163,6 +179,9 @@ def validate_workflow_config(config_values):
                 "preflight_mode must be one of: " + ", ".join(sorted(ALLOWED_PREFLIGHT_MODES))
             )
 
+        require_optional_positive_number(config_values, "cellbender_learning_rate", errors)
+        require_optional_bool(config_values, "cellbender_adaptive_rerun", errors)
+
     if workflow_mode in {"preprocess_and_downsample", "downsample_only"}:
         if "downsampleSeuratObjectDir" in config_values:
             require_non_empty_string(config_values, "downsampleSeuratObjectDir", errors)
@@ -196,6 +215,12 @@ def validate_workflow_config(config_values):
         "excluded_samples": excluded_samples,
         "preflight_min_cells": config_values.get("preflight_min_cells", DEFAULT_PREFLIGHT_MIN_CELLS),
         "preflight_mode": config_values.get("preflight_mode", DEFAULT_PREFLIGHT_MODE),
+        "cellbender_learning_rate": config_values.get(
+            "cellbender_learning_rate", DEFAULT_CELLBENDER_LEARNING_RATE
+        ),
+        "cellbender_adaptive_rerun": config_values.get(
+            "cellbender_adaptive_rerun", DEFAULT_CELLBENDER_ADAPTIVE_RERUN
+        ),
     }
 
 

@@ -134,6 +134,9 @@ def test_default_config_has_required_keys_and_valid_values():
         (lambda cfg: cfg.update({"workflow_mode": "downsample_only", "downsampleRate": 1.5}), "downsampleRate must be > 0 and <= 1", True),
         (lambda cfg: cfg.update({"preflight_min_cells": 0}), "preflight_min_cells must be a positive integer", True),
         (lambda cfg: cfg.update({"preflight_mode": "bogus"}), "preflight_mode must be one of", True),
+        (lambda cfg: cfg.update({"cellbender_learning_rate": 0}), "cellbender_learning_rate must be a positive number", True),
+        (lambda cfg: cfg.update({"cellbender_learning_rate": "fast"}), "cellbender_learning_rate must be a positive number", True),
+        (lambda cfg: cfg.update({"cellbender_adaptive_rerun": "yes"}), "cellbender_adaptive_rerun must be a boolean", True),
     ],
 )
 def test_invalid_config_fails_early_with_clear_message(tmp_path, mutate, expected_message, override_results_dir):
