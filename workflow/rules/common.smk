@@ -25,6 +25,7 @@ ALLOWED_POSTHOC_METHODS = {"threshold", "mad"}
 ALLOWED_PREFLIGHT_MODES = {"off", "warn", "skip", "error"}
 DEFAULT_PREFLIGHT_MIN_CELLS = 100
 DEFAULT_PREFLIGHT_MODE = "skip"
+DEFAULT_MIN_RAW_TO_CELL_RATIO = 2
 
 
 def require_non_empty_string(config_values, key, errors):
@@ -290,6 +291,69 @@ def preflight_min_cells_check(sampleinfo, min_cells):
     }
     below = sorted(sample_id for sample_id, n in counts.items() if n < min_cells)
     return counts, below
+
+
+def read_mtx_dims(matrix_dir):
+    """(n_features, n_barcodes, nnz) from a 10x MatrixMarket matrix.mtx[.gz] header.
+
+    Reads only the header (comment lines plus the single dims line), so it never loads the
+    matrix -- cheap enough for every sample at parse time."""
+    for name in ("matrix.mtx.gz", "matrix.mtx"):
+        mtx = Path(matrix_dir) / name
+        if mtx.exists():
+            opener = gzip.open if name.endswith(".gz") else open
+            with opener(mtx, "rt") as handle:
+                for line in handle:
+                    if line.startswith("%"):
+                        continue
+                    parts = line.split()
+                    if len(parts) < 3:
+                        raise ValueError(f"malformed MatrixMarket dims line: {line.strip()!r}")
+                    return int(parts[0]), int(parts[1]), int(parts[2])
+            raise ValueError(f"no dimension line in {mtx}")
+    raise FileNotFoundError(f"no matrix.mtx[.gz] under {matrix_dir}")
+
+
+def cellbender_preflight_checks(sampleinfo, min_raw_to_cell_ratio=DEFAULT_MIN_RAW_TO_CELL_RATIO):
+    """Raw-matrix sanity for the cellbender_fromraw arm, at parse time (reads only MTX headers).
+
+    Returns (errors, warnings). These are input-integrity checks, deliberately NOT governed by
+    preflight_mode:
+      errors   -- a broken or wrong raw input to fix: the raw matrix.mtx is unreadable,
+                  empty/degenerate (zero features/barcodes/nonzeros), or has fewer barcodes than
+                  the sample's filtered matrix (raw must be a superset of filtered). Hard-stops.
+      warnings -- the raw matrix has fewer than min_raw_to_cell_ratio x the called cells in
+                  droplets: too few empty droplets for CellBender's ambient estimate, often a
+                  sign the raw path actually points at a filtered matrix. Non-blocking.
+    Only meaningful when cellbender_fromraw is a configured decon method; the caller gates on that."""
+    errors = []
+    warnings = []
+    for sample_id, data_dir in zip(sampleinfo["sampleid"], sampleinfo["tenx_datadir"]):
+        raw_dir = Path(data_dir) / "raw_feature_bc_matrix"
+        try:
+            n_features, n_barcodes, nnz = read_mtx_dims(raw_dir)
+        except Exception as exc:
+            errors.append(f"{sample_id}: raw matrix unreadable ({raw_dir}): {exc}")
+            continue
+        if n_features <= 0 or n_barcodes <= 0 or nnz <= 0:
+            errors.append(
+                f"{sample_id}: raw matrix is empty/degenerate "
+                f"(features={n_features}, barcodes={n_barcodes}, nonzeros={nnz})"
+            )
+            continue
+        filtered_cells = count_filtered_cells(data_dir)
+        if n_barcodes < filtered_cells:
+            errors.append(
+                f"{sample_id}: raw matrix has fewer barcodes ({n_barcodes}) than the filtered "
+                f"matrix ({filtered_cells}); the raw and filtered inputs look mismatched"
+            )
+        elif n_barcodes < min_raw_to_cell_ratio * filtered_cells:
+            warnings.append(
+                f"{sample_id}: {n_barcodes} raw droplets vs {filtered_cells} called cells "
+                f"(< {min_raw_to_cell_ratio}x); few empty droplets for CellBender's ambient "
+                "estimate - check the raw path is a true unfiltered matrix"
+            )
+    return errors, warnings
 
 
 def sample_tenx_dir(wildcards):

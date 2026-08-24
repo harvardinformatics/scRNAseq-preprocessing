@@ -73,6 +73,22 @@ if RUN_PREPROCESS:
                 )
                 SAMPLES = [s for s in SAMPLES if s not in preflight_below]
                 sampleinfo = sampleinfo[~sampleinfo["sampleid"].isin(preflight_below)].reset_index(drop=True)
+
+    # CellBender raw-matrix sanity for the cellbender_fromraw arm. These are input-integrity
+    # checks, so (unlike the cell-count gate) they are NOT governed by preflight_mode: a
+    # malformed / empty / mismatched raw matrix hard-errors (fix the input or exclude the
+    # sample), while too few raw droplets for ambient estimation is a non-blocking warning.
+    # Reads only MTX headers, so it stays cheap.
+    if SAMPLES and "cellbender_fromraw" in validated_config["decon_methods"]:
+        cb_errors, cb_warnings = cellbender_preflight_checks(sampleinfo)
+        for message in cb_warnings:
+            print(f"[preflight:cellbender] WARNING: {message}", file=sys.stderr)
+        if cb_errors:
+            raise ValueError(
+                "[preflight:cellbender] raw-matrix problem(s) for the cellbender_fromraw arm:\n  - "
+                + "\n  - ".join(cb_errors)
+                + "\nFix the raw inputs or add these samples to excluded_samples."
+            )
 else:
     sampleinfo = pd.DataFrame({"sampleid": [], "tenx_datadir": []})
     SAMPLES = []
