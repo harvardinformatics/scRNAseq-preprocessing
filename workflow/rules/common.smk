@@ -1,3 +1,4 @@
+import gzip
 import os
 from pathlib import Path
 
@@ -21,6 +22,9 @@ ALLOWED_EMPTYDROP_METHODS = {"tenx", "emptydrops"}
 ALLOWED_DECON_METHODS = {"soupx", "cellbender_fromraw"}
 ALLOWED_DOUBLET_METHODS = {"doubletfinder", "scdblfinder"}
 ALLOWED_POSTHOC_METHODS = {"threshold", "mad"}
+ALLOWED_PREFLIGHT_MODES = {"off", "warn", "skip", "error"}
+DEFAULT_PREFLIGHT_MIN_CELLS = 100
+DEFAULT_PREFLIGHT_MODE = "skip"
 
 
 def require_non_empty_string(config_values, key, errors):
@@ -152,6 +156,12 @@ def validate_workflow_config(config_values):
         if isinstance(max_mtdna, bool) or not isinstance(max_mtdna, (int, float)) or not 0 <= max_mtdna <= 100:
             errors.append("max_mtdna must be a number between 0 and 100")
 
+        require_optional_positive_int(config_values, "preflight_min_cells", errors)
+        if config_values.get("preflight_mode", DEFAULT_PREFLIGHT_MODE) not in ALLOWED_PREFLIGHT_MODES:
+            errors.append(
+                "preflight_mode must be one of: " + ", ".join(sorted(ALLOWED_PREFLIGHT_MODES))
+            )
+
     if workflow_mode in {"preprocess_and_downsample", "downsample_only"}:
         if "downsampleSeuratObjectDir" in config_values:
             require_non_empty_string(config_values, "downsampleSeuratObjectDir", errors)
@@ -183,6 +193,8 @@ def validate_workflow_config(config_values):
         "doublet_methods": doublet_methods,
         "posthoc_methods": posthoc_methods,
         "excluded_samples": excluded_samples,
+        "preflight_min_cells": config_values.get("preflight_min_cells", DEFAULT_PREFLIGHT_MIN_CELLS),
+        "preflight_mode": config_values.get("preflight_mode", DEFAULT_PREFLIGHT_MODE),
     }
 
 
@@ -247,6 +259,37 @@ def validate_sample_sheet(sampleinfo, sample_table):
     validated["sampleid"] = sample_ids.astype(str)
     validated["tenx_datadir"] = resolved_data_dirs
     return validated
+
+
+def count_filtered_cells(tenx_datadir):
+    """Number of called cells in a sample's CellRanger filtered matrix.
+
+    Reads only the barcode list (barcodes.tsv[.gz]) line count -- no matrix is loaded -- so it
+    is cheap enough to run for every sample at parse time (the preflight check below)."""
+    matrix_dir = Path(tenx_datadir) / "filtered_feature_bc_matrix"
+    for name in ("barcodes.tsv.gz", "barcodes.tsv"):
+        barcodes = matrix_dir / name
+        if barcodes.exists():
+            opener = gzip.open if name.endswith(".gz") else open
+            with opener(barcodes, "rt") as handle:
+                return sum(1 for line in handle if line.strip())
+    raise FileNotFoundError(f"preflight cell count: no barcodes.tsv[.gz] under {matrix_dir}")
+
+
+def preflight_min_cells_check(sampleinfo, min_cells):
+    """Per-sample CellRanger-filtered cell counts vs the preflight minimum.
+
+    Returns (counts, below): counts maps each sampleid to its number of called cells in
+    filtered_feature_bc_matrix; below is the sorted list of sampleids with fewer than
+    min_cells. Only the CellRanger filtered count is knowable before the run (emptydrops and
+    cellbender_fromraw call cells at runtime), so this gates on that count as the whole-sample
+    viability signal; require_min_cells_for_pca remains the runtime backstop for the arms."""
+    counts = {
+        str(sample_id): count_filtered_cells(data_dir)
+        for sample_id, data_dir in zip(sampleinfo["sampleid"], sampleinfo["tenx_datadir"])
+    }
+    below = sorted(sample_id for sample_id, n in counts.items() if n < min_cells)
+    return counts, below
 
 
 def sample_tenx_dir(wildcards):

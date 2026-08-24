@@ -114,6 +114,10 @@ def test_default_config_has_required_keys_and_valid_values():
     assert isinstance(config["min_ncount"], int) and config["min_ncount"] > 0
     assert isinstance(config["max_mtdna"], (int, float)) and 0 <= config["max_mtdna"] <= 100
 
+    assert config.get("preflight_mode", "skip") in {"off", "warn", "skip", "error"}
+    if "preflight_min_cells" in config:
+        assert isinstance(config["preflight_min_cells"], int) and config["preflight_min_cells"] > 0
+
 
 @pytest.mark.parametrize(
     "mutate, expected_message, override_results_dir",
@@ -128,6 +132,8 @@ def test_default_config_has_required_keys_and_valid_values():
         (lambda cfg: cfg.update({"resultsDir": ""}), "resultsDir must be a non-empty string", False),
         (lambda cfg: cfg.update({"workflow_mode": "bad_mode"}), "workflow_mode must be one of", True),
         (lambda cfg: cfg.update({"workflow_mode": "downsample_only", "downsampleRate": 1.5}), "downsampleRate must be > 0 and <= 1", True),
+        (lambda cfg: cfg.update({"preflight_min_cells": 0}), "preflight_min_cells must be a positive integer", True),
+        (lambda cfg: cfg.update({"preflight_mode": "bogus"}), "preflight_mode must be one of", True),
     ],
 )
 def test_invalid_config_fails_early_with_clear_message(tmp_path, mutate, expected_message, override_results_dir):

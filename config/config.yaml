@@ -12,6 +12,16 @@ workflow_seed: 12345
 # ID in samplesheet.tsv, remove that ID from this list so the new data is processed.
 excluded_samples: []
 
+# Preflight quality gate (runs before any job): counts the called cells in each sample's
+# CellRanger filtered_feature_bc_matrix and handles samples with too few to cluster.
+#   preflight_mode: "skip" drops them from the DAG and reports them - re-checked every run, so a
+#     re-sequenced sample with more cells is picked up automatically; "error" hard-stops the run;
+#     "warn" only reports; "off" disables the check.
+# Only the CellRanger filtered count is known preflight; the runtime min-cells guard and the
+# results/low_quality_samples/ quarantine remain the backstop for the emptydrops/cellbender arms.
+preflight_min_cells: 100
+preflight_mode: "skip"
+
 emptydrop_removal_methods: ["tenx","emptydrops"]
 ambient_decon_methods: ["soupx","cellbender_fromraw"]
 doublet_removal_methods: ["doubletfinder", "scdblfinder"]

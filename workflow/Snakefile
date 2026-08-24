@@ -18,6 +18,8 @@ config.setdefault("min_ncount", 1)
 config.setdefault("max_mtdna", 100)
 
 EXCLUDED_SAMPLES = validated_config["excluded_samples"]
+PREFLIGHT_MIN_CELLS = validated_config["preflight_min_cells"]
+PREFLIGHT_MODE = validated_config["preflight_mode"]
 if RUN_PREPROCESS:
     sampleinfo = pd.read_table(config["sampleTable"], dtype={"sampleid": str})
     sampleinfo = validate_sample_sheet(sampleinfo, config["sampleTable"])
@@ -40,6 +42,37 @@ if RUN_PREPROCESS:
             )
         SAMPLES = [s for s in SAMPLES if s not in EXCLUDED_SAMPLES]
         sampleinfo = sampleinfo[~sampleinfo["sampleid"].isin(EXCLUDED_SAMPLES)].reset_index(drop=True)
+
+    # Preflight quality gate: before any job launches, count the called cells in each remaining
+    # sample's CellRanger filtered matrix and handle those too few to cluster. Only that count
+    # is knowable now (emptydrops/cellbender_fromraw call cells at runtime), so this gates on it
+    # as the whole-sample viability signal; require_min_cells_for_pca + the low_quality_samples
+    # quarantine remain the runtime backstop for the other arms.
+    if PREFLIGHT_MODE != "off" and SAMPLES:
+        preflight_counts, preflight_below = preflight_min_cells_check(sampleinfo, PREFLIGHT_MIN_CELLS)
+        if preflight_below:
+            detail = ", ".join(f"{s} ({preflight_counts[s]} cells)" for s in preflight_below)
+            if PREFLIGHT_MODE == "error":
+                raise ValueError(
+                    f"[preflight] {len(preflight_below)} sample(s) have fewer than "
+                    f"preflight_min_cells={PREFLIGHT_MIN_CELLS} called cells in their CellRanger "
+                    f"filtered matrix: {detail}. Add them to excluded_samples, lower "
+                    "preflight_min_cells, or set preflight_mode to 'skip' or 'warn'."
+                )
+            print(
+                f"[preflight] {len(preflight_below)} sample(s) below "
+                f"preflight_min_cells={PREFLIGHT_MIN_CELLS} (CellRanger filtered cells): {detail}",
+                file=sys.stderr,
+            )
+            if PREFLIGHT_MODE == "skip":
+                print(
+                    f"[preflight] skipping {len(preflight_below)} low-cell sample(s) from the DAG; "
+                    "re-checked every run, so a re-sequenced sample with more cells is picked up "
+                    "automatically.",
+                    file=sys.stderr,
+                )
+                SAMPLES = [s for s in SAMPLES if s not in preflight_below]
+                sampleinfo = sampleinfo[~sampleinfo["sampleid"].isin(preflight_below)].reset_index(drop=True)
 else:
     sampleinfo = pd.DataFrame({"sampleid": [], "tenx_datadir": []})
     SAMPLES = []
