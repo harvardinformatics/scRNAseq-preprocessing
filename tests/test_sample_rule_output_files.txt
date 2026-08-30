@@ -1,5 +1,7 @@
 testdata/results/cellbender/cellbender_test.h5
+testdata/results/cellbender/cellbender_test_adaptive_status.txt
 testdata/results/cellbender/cellbender_test_filtered.h5
+testdata/results/cellbender/cellbender_test_report.html
 testdata/results/cellbender_fromraw/seurat_cellbender_fromraw_test.rds
 testdata/results/cellbender_fromraw/seurat_cellbender_fromraw_test_markergenes.csv
 testdata/results/doubletfinder/seurat_doubletfinder_cellbender_fromraw_test.rds

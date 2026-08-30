@@ -18,6 +18,8 @@ config.setdefault("min_ncount", 1)
 config.setdefault("max_mtdna", 100)
 
 EXCLUDED_SAMPLES = validated_config["excluded_samples"]
+PREFLIGHT_MIN_CELLS = validated_config["preflight_min_cells"]
+PREFLIGHT_MODE = validated_config["preflight_mode"]
 if RUN_PREPROCESS:
     sampleinfo = pd.read_table(config["sampleTable"], dtype={"sampleid": str})
     sampleinfo = validate_sample_sheet(sampleinfo, config["sampleTable"])
@@ -40,6 +42,53 @@ if RUN_PREPROCESS:
             )
         SAMPLES = [s for s in SAMPLES if s not in EXCLUDED_SAMPLES]
         sampleinfo = sampleinfo[~sampleinfo["sampleid"].isin(EXCLUDED_SAMPLES)].reset_index(drop=True)
+
+    # Preflight quality gate: before any job launches, count the called cells in each remaining
+    # sample's CellRanger filtered matrix and handle those too few to cluster. Only that count
+    # is knowable now (emptydrops/cellbender_fromraw call cells at runtime), so this gates on it
+    # as the whole-sample viability signal; require_min_cells_for_pca + the low_quality_samples
+    # quarantine remain the runtime backstop for the other arms.
+    if PREFLIGHT_MODE != "off" and SAMPLES:
+        preflight_counts, preflight_below = preflight_min_cells_check(sampleinfo, PREFLIGHT_MIN_CELLS)
+        if preflight_below:
+            detail = ", ".join(f"{s} ({preflight_counts[s]} cells)" for s in preflight_below)
+            if PREFLIGHT_MODE == "error":
+                raise ValueError(
+                    f"[preflight] {len(preflight_below)} sample(s) have fewer than "
+                    f"preflight_min_cells={PREFLIGHT_MIN_CELLS} called cells in their CellRanger "
+                    f"filtered matrix: {detail}. Add them to excluded_samples, lower "
+                    "preflight_min_cells, or set preflight_mode to 'skip' or 'warn'."
+                )
+            print(
+                f"[preflight] {len(preflight_below)} sample(s) below "
+                f"preflight_min_cells={PREFLIGHT_MIN_CELLS} (CellRanger filtered cells): {detail}",
+                file=sys.stderr,
+            )
+            if PREFLIGHT_MODE == "skip":
+                print(
+                    f"[preflight] skipping {len(preflight_below)} low-cell sample(s) from the DAG; "
+                    "re-checked every run, so a re-sequenced sample with more cells is picked up "
+                    "automatically.",
+                    file=sys.stderr,
+                )
+                SAMPLES = [s for s in SAMPLES if s not in preflight_below]
+                sampleinfo = sampleinfo[~sampleinfo["sampleid"].isin(preflight_below)].reset_index(drop=True)
+
+    # CellBender raw-matrix sanity for the cellbender_fromraw arm. These are input-integrity
+    # checks, so (unlike the cell-count gate) they are NOT governed by preflight_mode: a
+    # malformed / empty / mismatched raw matrix hard-errors (fix the input or exclude the
+    # sample), while too few raw droplets for ambient estimation is a non-blocking warning.
+    # Reads only MTX headers, so it stays cheap.
+    if SAMPLES and "cellbender_fromraw" in validated_config["decon_methods"]:
+        cb_errors, cb_warnings = cellbender_preflight_checks(sampleinfo)
+        for message in cb_warnings:
+            print(f"[preflight:cellbender] WARNING: {message}", file=sys.stderr)
+        if cb_errors:
+            raise ValueError(
+                "[preflight:cellbender] raw-matrix problem(s) for the cellbender_fromraw arm:\n  - "
+                + "\n  - ".join(cb_errors)
+                + "\nFix the raw inputs or add these samples to excluded_samples."
+            )
 else:
     sampleinfo = pd.DataFrame({"sampleid": [], "tenx_datadir": []})
     SAMPLES = []
@@ -51,6 +100,8 @@ DECON_METHODS = validated_config["decon_methods"]
 DOUBLET_METHODS = validated_config["doublet_methods"]
 EMPTYDROP_METHODS = validated_config["emptydrop_methods"]
 POSTHOC_METHODS = validated_config["posthoc_methods"]
+CELLBENDER_LEARNING_RATE = validated_config["cellbender_learning_rate"]
+CELLBENDER_ADAPTIVE = validated_config["cellbender_adaptive_rerun"]
 DOWNSAMPLE_RESULTS_DIR = config.get("downsampleResultsDir", f"{RESULTS_DIR}/downsampling").rstrip("/")
 DOWNSAMPLE_SEURAT_OBJECT_DIR = config.get(
     "downsampleSeuratObjectDir",
@@ -134,6 +185,20 @@ PREPROCESS_PREFIXES = (
 PREPROCESS_MARKER_TARGETS = marker_targets(PREPROCESS_PREFIXES)
 PREPROCESS_SEURAT_TARGETS = rds_targets(PREPROCESS_PREFIXES)
 
+# Per-sample adaptive-run status files (one per cellbender_fromraw sample) and the run-level
+# summary that aggregates them. Requested as targets so the summary is always built for the
+# cellbender_fromraw arm, giving a single place to see which samples needed a learning-rate re-run.
+CELLBENDER_STATUS = (
+    expand(f"{RESULTS_DIR}/cellbender/cellbender_{{sample}}_adaptive_status.txt", sample=SAMPLES)
+    if RUN_PREPROCESS and "cellbender_fromraw" in DECON_METHODS
+    else []
+)
+CELLBENDER_ADAPTIVE_SUMMARY = (
+    [f"{RESULTS_DIR}/cellbender/cellbender_adaptive_summary.tsv"]
+    if CELLBENDER_STATUS
+    else []
+)
+
 
 if RUN_DOWNSAMPLE:
     if WORKFLOW_MODE == "downsample_only":
@@ -174,6 +239,7 @@ DOWNSAMPLE_TARGET_REGEX = (
 ALL_TARGETS = []
 if RUN_PREPROCESS:
     ALL_TARGETS.extend(PREPROCESS_MARKER_TARGETS)
+    ALL_TARGETS.extend(CELLBENDER_ADAPTIVE_SUMMARY)
 if RUN_DOWNSAMPLE:
     ALL_TARGETS.extend(DOWNSAMPLE_TARGETS)
 

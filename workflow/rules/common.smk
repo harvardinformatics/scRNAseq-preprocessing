@@ -1,3 +1,4 @@
+import gzip
 import os
 from pathlib import Path
 
@@ -21,6 +22,13 @@ ALLOWED_EMPTYDROP_METHODS = {"tenx", "emptydrops"}
 ALLOWED_DECON_METHODS = {"soupx", "cellbender_fromraw"}
 ALLOWED_DOUBLET_METHODS = {"doubletfinder", "scdblfinder"}
 ALLOWED_POSTHOC_METHODS = {"threshold", "mad"}
+ALLOWED_PREFLIGHT_MODES = {"off", "warn", "skip", "error"}
+DEFAULT_PREFLIGHT_MIN_CELLS = 100
+DEFAULT_PREFLIGHT_MODE = "skip"
+DEFAULT_MIN_RAW_TO_CELL_RATIO = 2
+# CellBender's own default learning rate; the adaptive re-run uses exactly half of this.
+DEFAULT_CELLBENDER_LEARNING_RATE = 0.0001
+DEFAULT_CELLBENDER_ADAPTIVE_RERUN = True
 
 
 def require_non_empty_string(config_values, key, errors):
@@ -38,6 +46,19 @@ def require_positive_int(config_values, key, errors):
 def require_optional_positive_int(config_values, key, errors):
     if key in config_values:
         require_positive_int(config_values, key, errors)
+
+
+def require_optional_positive_number(config_values, key, errors):
+    if key not in config_values:
+        return
+    value = config_values.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+        errors.append(f"{key} must be a positive number")
+
+
+def require_optional_bool(config_values, key, errors):
+    if key in config_values and not isinstance(config_values.get(key), bool):
+        errors.append(f"{key} must be a boolean (true or false)")
 
 
 def validate_method_list(config_values, key, allowed_values, errors):
@@ -152,6 +173,15 @@ def validate_workflow_config(config_values):
         if isinstance(max_mtdna, bool) or not isinstance(max_mtdna, (int, float)) or not 0 <= max_mtdna <= 100:
             errors.append("max_mtdna must be a number between 0 and 100")
 
+        require_optional_positive_int(config_values, "preflight_min_cells", errors)
+        if config_values.get("preflight_mode", DEFAULT_PREFLIGHT_MODE) not in ALLOWED_PREFLIGHT_MODES:
+            errors.append(
+                "preflight_mode must be one of: " + ", ".join(sorted(ALLOWED_PREFLIGHT_MODES))
+            )
+
+        require_optional_positive_number(config_values, "cellbender_learning_rate", errors)
+        require_optional_bool(config_values, "cellbender_adaptive_rerun", errors)
+
     if workflow_mode in {"preprocess_and_downsample", "downsample_only"}:
         if "downsampleSeuratObjectDir" in config_values:
             require_non_empty_string(config_values, "downsampleSeuratObjectDir", errors)
@@ -183,6 +213,14 @@ def validate_workflow_config(config_values):
         "doublet_methods": doublet_methods,
         "posthoc_methods": posthoc_methods,
         "excluded_samples": excluded_samples,
+        "preflight_min_cells": config_values.get("preflight_min_cells", DEFAULT_PREFLIGHT_MIN_CELLS),
+        "preflight_mode": config_values.get("preflight_mode", DEFAULT_PREFLIGHT_MODE),
+        "cellbender_learning_rate": config_values.get(
+            "cellbender_learning_rate", DEFAULT_CELLBENDER_LEARNING_RATE
+        ),
+        "cellbender_adaptive_rerun": config_values.get(
+            "cellbender_adaptive_rerun", DEFAULT_CELLBENDER_ADAPTIVE_RERUN
+        ),
     }
 
 
@@ -247,6 +285,100 @@ def validate_sample_sheet(sampleinfo, sample_table):
     validated["sampleid"] = sample_ids.astype(str)
     validated["tenx_datadir"] = resolved_data_dirs
     return validated
+
+
+def count_filtered_cells(tenx_datadir):
+    """Number of called cells in a sample's CellRanger filtered matrix.
+
+    Reads only the barcode list (barcodes.tsv[.gz]) line count -- no matrix is loaded -- so it
+    is cheap enough to run for every sample at parse time (the preflight check below)."""
+    matrix_dir = Path(tenx_datadir) / "filtered_feature_bc_matrix"
+    for name in ("barcodes.tsv.gz", "barcodes.tsv"):
+        barcodes = matrix_dir / name
+        if barcodes.exists():
+            opener = gzip.open if name.endswith(".gz") else open
+            with opener(barcodes, "rt") as handle:
+                return sum(1 for line in handle if line.strip())
+    raise FileNotFoundError(f"preflight cell count: no barcodes.tsv[.gz] under {matrix_dir}")
+
+
+def preflight_min_cells_check(sampleinfo, min_cells):
+    """Per-sample CellRanger-filtered cell counts vs the preflight minimum.
+
+    Returns (counts, below): counts maps each sampleid to its number of called cells in
+    filtered_feature_bc_matrix; below is the sorted list of sampleids with fewer than
+    min_cells. Only the CellRanger filtered count is knowable before the run (emptydrops and
+    cellbender_fromraw call cells at runtime), so this gates on that count as the whole-sample
+    viability signal; require_min_cells_for_pca remains the runtime backstop for the arms."""
+    counts = {
+        str(sample_id): count_filtered_cells(data_dir)
+        for sample_id, data_dir in zip(sampleinfo["sampleid"], sampleinfo["tenx_datadir"])
+    }
+    below = sorted(sample_id for sample_id, n in counts.items() if n < min_cells)
+    return counts, below
+
+
+def read_mtx_dims(matrix_dir):
+    """(n_features, n_barcodes, nnz) from a 10x MatrixMarket matrix.mtx[.gz] header.
+
+    Reads only the header (comment lines plus the single dims line), so it never loads the
+    matrix -- cheap enough for every sample at parse time."""
+    for name in ("matrix.mtx.gz", "matrix.mtx"):
+        mtx = Path(matrix_dir) / name
+        if mtx.exists():
+            opener = gzip.open if name.endswith(".gz") else open
+            with opener(mtx, "rt") as handle:
+                for line in handle:
+                    if line.startswith("%"):
+                        continue
+                    parts = line.split()
+                    if len(parts) < 3:
+                        raise ValueError(f"malformed MatrixMarket dims line: {line.strip()!r}")
+                    return int(parts[0]), int(parts[1]), int(parts[2])
+            raise ValueError(f"no dimension line in {mtx}")
+    raise FileNotFoundError(f"no matrix.mtx[.gz] under {matrix_dir}")
+
+
+def cellbender_preflight_checks(sampleinfo, min_raw_to_cell_ratio=DEFAULT_MIN_RAW_TO_CELL_RATIO):
+    """Raw-matrix sanity for the cellbender_fromraw arm, at parse time (reads only MTX headers).
+
+    Returns (errors, warnings). These are input-integrity checks, deliberately NOT governed by
+    preflight_mode:
+      errors   -- a broken or wrong raw input to fix: the raw matrix.mtx is unreadable,
+                  empty/degenerate (zero features/barcodes/nonzeros), or has fewer barcodes than
+                  the sample's filtered matrix (raw must be a superset of filtered). Hard-stops.
+      warnings -- the raw matrix has fewer than min_raw_to_cell_ratio x the called cells in
+                  droplets: too few empty droplets for CellBender's ambient estimate, often a
+                  sign the raw path actually points at a filtered matrix. Non-blocking.
+    Only meaningful when cellbender_fromraw is a configured decon method; the caller gates on that."""
+    errors = []
+    warnings = []
+    for sample_id, data_dir in zip(sampleinfo["sampleid"], sampleinfo["tenx_datadir"]):
+        raw_dir = Path(data_dir) / "raw_feature_bc_matrix"
+        try:
+            n_features, n_barcodes, nnz = read_mtx_dims(raw_dir)
+        except Exception as exc:
+            errors.append(f"{sample_id}: raw matrix unreadable ({raw_dir}): {exc}")
+            continue
+        if n_features <= 0 or n_barcodes <= 0 or nnz <= 0:
+            errors.append(
+                f"{sample_id}: raw matrix is empty/degenerate "
+                f"(features={n_features}, barcodes={n_barcodes}, nonzeros={nnz})"
+            )
+            continue
+        filtered_cells = count_filtered_cells(data_dir)
+        if n_barcodes < filtered_cells:
+            errors.append(
+                f"{sample_id}: raw matrix has fewer barcodes ({n_barcodes}) than the filtered "
+                f"matrix ({filtered_cells}); the raw and filtered inputs look mismatched"
+            )
+        elif n_barcodes < min_raw_to_cell_ratio * filtered_cells:
+            warnings.append(
+                f"{sample_id}: {n_barcodes} raw droplets vs {filtered_cells} called cells "
+                f"(< {min_raw_to_cell_ratio}x); few empty droplets for CellBender's ambient "
+                "estimate - check the raw path is a true unfiltered matrix"
+            )
+    return errors, warnings
 
 
 def sample_tenx_dir(wildcards):

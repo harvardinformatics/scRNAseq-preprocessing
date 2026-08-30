@@ -12,10 +12,29 @@ workflow_seed: 12345
 # ID in samplesheet.tsv, remove that ID from this list so the new data is processed.
 excluded_samples: []
 
+# Preflight quality gate (runs before any job): counts the called cells in each sample's
+# CellRanger filtered_feature_bc_matrix and handles samples with too few to cluster.
+#   preflight_mode: "skip" drops them from the DAG and reports them - re-checked every run, so a
+#     re-sequenced sample with more cells is picked up automatically; "error" hard-stops the run;
+#     "warn" only reports; "off" disables the check.
+# Only the CellRanger filtered count is known preflight; the runtime min-cells guard and the
+# results/low_quality_samples/ quarantine remain the backstop for the emptydrops/cellbender arms.
+preflight_min_cells: 100
+preflight_mode: "skip"
+
 emptydrop_removal_methods: ["tenx","emptydrops"]
 ambient_decon_methods: ["soupx","cellbender_fromraw"]
 doublet_removal_methods: ["doubletfinder", "scdblfinder"]
 posthoc_methods: ["threshold", "mad"]
+
+# CellBender (cellbender_fromraw arm) adaptive re-run. After the initial run, the HTML report's
+# automated assessment is parsed: if the learning curve looks normal, that run is kept; if the
+# report recommends halving the learning rate and cellbender_adaptive_rerun is true, CellBender is
+# re-run at half cellbender_learning_rate and the re-run is kept only if ITS curve looks normal
+# (otherwise the initial run is kept). results/cellbender/cellbender_adaptive_summary.tsv reports
+# which samples needed a re-run and whether it resolved the issue.
+cellbender_learning_rate: 0.0001      # CellBender's default; the re-run uses exactly half of this
+cellbender_adaptive_rerun: true       # set false to always keep the single initial run
 min_nfeature: 200
 min_ncount: 500
 max_mtdna: 5

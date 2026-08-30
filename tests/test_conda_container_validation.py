@@ -136,7 +136,14 @@ def test_workflow_container_declarations_are_explicit_and_recognized():
             containers.append((rule_path, uri))
 
     assert containers, "no workflow container declarations found"
-    assert containers == [(root / "workflow/rules/cellbender.smk", CELLBENDER_CONTAINER_URI)]
+    # The `cellbender` rule and the `cellbender_adaptive_summary` rule (which reuses the same
+    # image for a stdlib aggregation) are the only container declarations, and both pin the
+    # identical CellBender digest.
+    cellbender_smk = root / "workflow/rules/cellbender.smk"
+    assert containers == [
+        (cellbender_smk, CELLBENDER_CONTAINER_URI),
+        (cellbender_smk, CELLBENDER_CONTAINER_URI),
+    ]
     for _, uri in containers:
         assert uri.startswith("docker://")
         assert ":" in uri.removeprefix("docker://"), f"container URI is missing a tag: {uri}"
