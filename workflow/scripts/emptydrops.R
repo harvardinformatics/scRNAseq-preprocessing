@@ -36,7 +36,7 @@ colnames(droputil_rawdata) <- droputil_rawdata$Barcode
 rownames(droputil_rawdata) <- make.unique(rowData(droputil_rawdata)$Symbol)
 set.seed(WORKFLOW_SEED)
 dropletutils_out <-emptyDrops(counts(droputil_rawdata))
-is.cell <-!is.na(dropletutils_out$FDR) & dropletutils_out$FDR<0.01
+is.cell <-!is.na(dropletutils_out$FDR) & dropletutils_out$FDR<0.001
 cell_barcodes <- colnames(droputil_rawdata)[which(is.cell)]
 droputil_filtered <- droputil_rawdata[,is.cell]
 droputil_filtered <- logNormCounts(droputil_filtered)
