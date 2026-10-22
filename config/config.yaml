@@ -10,7 +10,7 @@ workflow_seed: 12345
 # or any sample you want to hold out. Exclusion is explicit and logged at startup - nothing
 # is skipped automatically. IMPORTANT: if you re-sequence a bad library and reuse its sample
 # ID in samplesheet.tsv, remove that ID from this list so the new data is processed.
-excluded_samples: []
+excluded_samples: ["cteleta"]
 
 # Preflight quality gate (runs before any job): counts the called cells in each sample's
 # CellRanger filtered_feature_bc_matrix and handles samples with too few to cluster.
