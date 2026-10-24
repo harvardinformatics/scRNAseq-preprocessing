@@ -116,6 +116,7 @@ jobs:
       fail-fast: false
       matrix:
         env_name:
+          - decontx.yml
           - doubletfinder.yml
           - downsample_clusters.yml
           - emptydrops.yml

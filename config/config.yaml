@@ -23,9 +23,9 @@ preflight_min_cells: 100
 preflight_mode: "skip"
 
 emptydrop_removal_methods: ["tenx","emptydrops"]
-ambient_decon_methods: ["soupx","cellbender_fromraw"]
+ambient_decon_methods: ["soupx","cellbender_fromraw","decontx_raw"]
 doublet_removal_methods: ["doubletfinder", "scdblfinder"]
-posthoc_methods: ["threshold", "mad"]
+posthoc_methods: ["threshold"]
 
 # CellBender (cellbender_fromraw arm) adaptive re-run. After the initial run, the HTML report's
 # automated assessment is parsed: if the learning curve looks normal, that run is kept; if the

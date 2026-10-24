@@ -57,12 +57,12 @@ def test_testdata_dag_builds_with_dry_run():
         "emptydrops",
         "soupx",
         "soupx_emptydrops",
+        "decontx_raw",
         "cellbender",
         "cellbender2seurat",
         "doubletfinder",
         "scdblfinder",
         "posthocfilter_threshold",
-        "posthocfilter_mad",
         "combine_markers",
     ]:
         assert rule_name in output

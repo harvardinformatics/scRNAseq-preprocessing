@@ -172,15 +172,52 @@ CELLBENDER_POSTHOC_PREFIXES = (
     if RUN_PREPROCESS and "cellbender_fromraw" in DECON_METHODS
     else []
 )
+DECONTX_METHODS = [m for m in ("decontx_raw",) if m in DECON_METHODS]
+DECONTX_PREFIXES = (
+    expand(
+        "{decon_method}/seurat_{decon_method}_{empty_method}_{sample}",
+        decon_method=DECONTX_METHODS,
+        empty_method=EMPTYDROP_METHODS,
+        sample=SAMPLES,
+    )
+    if RUN_PREPROCESS and DECONTX_METHODS
+    else []
+)
+DECONTX_DOUBLET_PREFIXES = (
+    expand(
+        "{doublet_method}/seurat_{doublet_method}_{decon_method}_{empty_method}_{sample}",
+        doublet_method=DOUBLET_METHODS,
+        decon_method=DECONTX_METHODS,
+        empty_method=EMPTYDROP_METHODS,
+        sample=SAMPLES,
+    )
+    if RUN_PREPROCESS and DECONTX_METHODS
+    else []
+)
+DECONTX_POSTHOC_PREFIXES = (
+    expand(
+        "posthocfilter/seurat_posthocfilt_{posthoc_method}_{doublet_method}_{decon_method}_{empty_method}_{sample}",
+        posthoc_method=POSTHOC_METHODS,
+        doublet_method=DOUBLET_METHODS,
+        decon_method=DECONTX_METHODS,
+        empty_method=EMPTYDROP_METHODS,
+        sample=SAMPLES,
+    )
+    if RUN_PREPROCESS and DECONTX_METHODS
+    else []
+)
 PREPROCESS_PREFIXES = (
     TENX_PREFIXES
     + EMPTYDROPS_PREFIXES
     + SOUPX_PREFIXES
     + CELLBENDER_PREFIXES
+    + DECONTX_PREFIXES
     + SOUPX_DOUBLET_PREFIXES
     + CELLBENDER_DOUBLET_PREFIXES
+    + DECONTX_DOUBLET_PREFIXES
     + SOUPX_POSTHOC_PREFIXES
     + CELLBENDER_POSTHOC_PREFIXES
+    + DECONTX_POSTHOC_PREFIXES
 )
 PREPROCESS_MARKER_TARGETS = marker_targets(PREPROCESS_PREFIXES)
 PREPROCESS_SEURAT_TARGETS = rds_targets(PREPROCESS_PREFIXES)
@@ -261,6 +298,7 @@ include: "rules/doubletfinder.smk"
 include: "rules/cellbender.smk"
 include: "rules/cellbender2seurat.smk"
 include: "rules/soupx_emptydrops.smk"
+include: "rules/decontx.smk"
 include: "rules/posthocfilter_mad.smk"
 include: "rules/posthocfilter_threshold.smk"
 include: "rules/markers.smk"

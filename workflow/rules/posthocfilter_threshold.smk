@@ -13,7 +13,7 @@ rule posthocfilter_threshold:
         "../envs/posthocfilter.yml"
     wildcard_constraints:
         doublet_method="doubletfinder|scdblfinder",
-        decon_method="soupx",
+        decon_method="soupx|decontx_raw",
         empty_method="tenx|emptydrops"
     resources:
         mem_mb = lambda wildcards, attempt: int(64000 * (2 ** (attempt - 1))),

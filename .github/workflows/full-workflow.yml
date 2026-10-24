@@ -41,6 +41,8 @@ jobs:
         soupx:runtime=10
         soupx_emptydrops:mem_mb=2048
         soupx_emptydrops:runtime=10
+        decontx_raw:mem_mb=2048
+        decontx_raw:runtime=10
         cellbender2seurat:mem_mb=2048
         cellbender2seurat:runtime=10
         doubletfinder:mem_mb=2048

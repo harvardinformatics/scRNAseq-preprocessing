@@ -12,7 +12,7 @@ rule scdblfinder:
     conda:
         "../envs/scdblfinder.yml"
     wildcard_constraints:
-        decon_method="soupx",
+        decon_method="soupx|decontx_raw",
         empty_method="tenx|emptydrops"
     resources:
         mem_mb = lambda wildcards, attempt: int(48000 * (2 ** (attempt - 1))),

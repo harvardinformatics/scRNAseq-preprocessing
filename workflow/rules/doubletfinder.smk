@@ -13,7 +13,7 @@ rule doubletfinder:
     conda:
         "../envs/doubletfinder.yml"
     wildcard_constraints:
-        decon_method="soupx",
+        decon_method="soupx|decontx_raw",
         empty_method="tenx|emptydrops"
     resources:
         # DoubletFinder's paramSweep (sct=TRUE) synthesizes ~25% artificial doublets and

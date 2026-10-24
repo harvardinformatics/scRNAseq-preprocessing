@@ -19,7 +19,7 @@ PREPROCESS_REQUIRED_CONFIG_KEYS = {
 }
 ALLOWED_WORKFLOW_MODES = {"preprocess", "preprocess_and_downsample", "downsample_only"}
 ALLOWED_EMPTYDROP_METHODS = {"tenx", "emptydrops"}
-ALLOWED_DECON_METHODS = {"soupx", "cellbender_fromraw"}
+ALLOWED_DECON_METHODS = {"soupx", "cellbender_fromraw", "decontx_raw"}
 ALLOWED_DOUBLET_METHODS = {"doubletfinder", "scdblfinder"}
 ALLOWED_POSTHOC_METHODS = {"threshold", "mad"}
 ALLOWED_PREFLIGHT_MODES = {"off", "warn", "skip", "error"}
@@ -395,6 +395,24 @@ def tenx_raw_matrix_input(wildcards):
 
 def tenx_raw_h5_input(wildcards):
     return os.path.join(sample_tenx_dir(wildcards), "raw_feature_bc_matrix.h5")
+
+
+def decontx_cells_matrix_input(wildcards):
+    """Called-cell (filtered) matrix for the decontx_raw arm, selected by empty_method.
+
+    The decontx_raw arm decontaminates the same called-cell sets as soupx:
+    the CellRanger filtered matrix (tenx) or the emptydrops filtered matrix. Mirrors the filtered
+    inputs of soupx.smk (tenx) and soupx_emptydrops.smk (emptydrops)."""
+    if wildcards.empty_method == "emptydrops":
+        return f"{RESULTS_DIR}/emptydrops/{wildcards.sample}_emptydrops_filtered_matrix"
+    return tenx_filtered_matrix_input(wildcards)
+
+
+def decontx_seurat_base_input(wildcards):
+    """Base Seurat object whose clusters decontX reuses as its cell populations (z), by empty_method."""
+    if wildcards.empty_method == "emptydrops":
+        return f"{RESULTS_DIR}/emptydrops/filtered_seurat_emptydrops_{wildcards.sample}.rds"
+    return f"{RESULTS_DIR}/seurat_filtered/filtered_seurat_tenx_{wildcards.sample}.rds"
 
 
 def marker_chunk_inputs(wildcards):

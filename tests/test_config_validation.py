@@ -22,7 +22,7 @@ REQUIRED_CONFIG_KEYS = {
     "max_mtdna",
 }
 ALLOWED_EMPTYDROP_METHODS = {"tenx", "emptydrops"}
-ALLOWED_DECON_METHODS = {"soupx", "cellbender_fromraw"}
+ALLOWED_DECON_METHODS = {"soupx", "cellbender_fromraw", "decontx_raw"}
 ALLOWED_DOUBLET_METHODS = {"doubletfinder", "scdblfinder"}
 ALLOWED_POSTHOC_METHODS = {"threshold", "mad"}
 ALLOWED_WORKFLOW_MODES = {"preprocess", "preprocess_and_downsample", "downsample_only"}
