@@ -57,8 +57,7 @@ SubSampleReSCTSeuratObject <- function(seurat_obj, subrate, replicate_seed) {
     drop = TRUE
   ]
 
-  vars_to_regress <- if ("percent.mt" %in% colnames(subsampled_seurat@meta.data)) "percent.mt" else NULL
-  subsampled_seurat <- SCTransform(subsampled_seurat, vars.to.regress = vars_to_regress, verbose = FALSE)
+  subsampled_seurat <- SCTransform(subsampled_seurat, verbose = FALSE)
   subsampled_seurat <- RunPCA(subsampled_seurat, verbose = FALSE)
   pca_dims <- seq_len(min(30, ncol(Embeddings(subsampled_seurat, "pca"))))
   subsampled_seurat <- FindNeighbors(subsampled_seurat, dims = pca_dims, verbose = FALSE)

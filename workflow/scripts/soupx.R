@@ -61,8 +61,10 @@ corrected_counts <- adjustCounts(soup_channel,roundToInt=TRUE)
 seurat_soupx <- CreateSeuratObject(counts = corrected_counts)
 rm(filtered_matrix, raw_matrix, soup_channel, corrected_counts)
 gc()
+# percent.mt is kept as metadata only: "(?i)^mt-" finds mitochondrial genes in few species,
+# so it is neither filtered on nor regressed out (every species is processed the same way).
 seurat_soupx[["percent.mt"]] <- PercentageFeatureSet(seurat_soupx, pattern = "(?i)^mt-")
-seurat_soupx <- SCTransform(seurat_soupx, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat_soupx <- SCTransform(seurat_soupx, seed.use = WORKFLOW_SEED, verbose = FALSE)
 require_min_cells_for_pca(seurat_soupx, context = "soupx")
 seurat_soupx <- RunPCA(seurat_soupx, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_soupx <- RunUMAP(seurat_soupx, dims = 1:30, seed.use = WORKFLOW_SEED)

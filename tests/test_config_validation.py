@@ -19,7 +19,6 @@ REQUIRED_CONFIG_KEYS = {
     "posthoc_methods",
     "min_nfeature",
     "min_ncount",
-    "max_mtdna",
 }
 ALLOWED_EMPTYDROP_METHODS = {"tenx", "emptydrops"}
 ALLOWED_DECON_METHODS = {"soupx", "cellbender_fromraw", "decontx_raw"}
@@ -112,7 +111,6 @@ def test_default_config_has_required_keys_and_valid_values():
 
     assert isinstance(config["min_nfeature"], int) and config["min_nfeature"] > 0
     assert isinstance(config["min_ncount"], int) and config["min_ncount"] > 0
-    assert isinstance(config["max_mtdna"], (int, float)) and 0 <= config["max_mtdna"] <= 100
 
     assert config.get("preflight_mode", "skip") in {"off", "warn", "skip", "error"}
     if "preflight_min_cells" in config:
@@ -128,7 +126,7 @@ def test_default_config_has_required_keys_and_valid_values():
         (lambda cfg: cfg.update({"ambient_decon_methods": []}), "ambient_decon_methods must be a non-empty list", True),
         (lambda cfg: cfg.update({"workflow_seed": "12345"}), "workflow_seed must be an integer", True),
         (lambda cfg: cfg.update({"min_nfeature": 0}), "min_nfeature must be a positive integer", True),
-        (lambda cfg: cfg.update({"max_mtdna": 101}), "max_mtdna must be a number between 0 and 100", True),
+        (lambda cfg: cfg.update({"max_mtdna": 5}), "max_mtdna is no longer supported", True),
         (lambda cfg: cfg.update({"resultsDir": ""}), "resultsDir must be a non-empty string", False),
         (lambda cfg: cfg.update({"workflow_mode": "bad_mode"}), "workflow_mode must be one of", True),
         (lambda cfg: cfg.update({"workflow_mode": "downsample_only", "downsampleRate": 1.5}), "downsampleRate must be > 0 and <= 1", True),

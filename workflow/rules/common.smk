@@ -15,7 +15,6 @@ PREPROCESS_REQUIRED_CONFIG_KEYS = {
     "posthoc_methods",
     "min_nfeature",
     "min_ncount",
-    "max_mtdna",
 }
 ALLOWED_WORKFLOW_MODES = {"preprocess", "preprocess_and_downsample", "downsample_only"}
 ALLOWED_EMPTYDROP_METHODS = {"tenx", "emptydrops"}
@@ -169,9 +168,9 @@ def validate_workflow_config(config_values):
 
         require_positive_int(config_values, "min_nfeature", errors)
         require_positive_int(config_values, "min_ncount", errors)
-        max_mtdna = config_values.get("max_mtdna")
-        if isinstance(max_mtdna, bool) or not isinstance(max_mtdna, (int, float)) or not 0 <= max_mtdna <= 100:
-            errors.append("max_mtdna must be a number between 0 and 100")
+        if "max_mtdna" in config_values:
+            errors.append("max_mtdna is no longer supported: the pipeline does not filter on or regress out "
+                          "% mitochondrial reads (mitochondrial genes are recognisable by name in few species)")
 
         require_optional_positive_int(config_values, "preflight_min_cells", errors)
         if config_values.get("preflight_mode", DEFAULT_PREFLIGHT_MODE) not in ALLOWED_PREFLIGHT_MODES:

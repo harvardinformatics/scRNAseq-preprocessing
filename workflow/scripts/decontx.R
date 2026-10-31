@@ -92,8 +92,10 @@ gc()
 seurat_decontx <- CreateSeuratObject(counts = corrected_counts)
 rm(corrected_counts)
 gc()
+# percent.mt is kept as metadata only: "(?i)^mt-" finds mitochondrial genes in few species,
+# so it is neither filtered on nor regressed out (every species is processed the same way).
 seurat_decontx[["percent.mt"]] <- PercentageFeatureSet(seurat_decontx, pattern = "(?i)^mt-")
-seurat_decontx <- SCTransform(seurat_decontx, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat_decontx <- SCTransform(seurat_decontx, seed.use = WORKFLOW_SEED, verbose = FALSE)
 require_min_cells_for_pca(seurat_decontx, context = "decontx")
 seurat_decontx <- RunPCA(seurat_decontx, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_decontx <- RunUMAP(seurat_decontx, dims = 1:30, seed.use = WORKFLOW_SEED)

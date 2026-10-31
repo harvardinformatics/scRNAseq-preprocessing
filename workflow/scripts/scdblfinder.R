@@ -32,8 +32,10 @@ gc()
 seurat_singlets <- subset(seurat, subset = scDblFinder.class == "singlet")
 rm(seurat)
 gc()
+# percent.mt is kept as metadata only: "(?i)^mt-" finds mitochondrial genes in few species,
+# so it is neither filtered on nor regressed out (every species is processed the same way).
 seurat_singlets[["percent.mt"]] <- PercentageFeatureSet(seurat_singlets, pattern = "(?i)^mt-")
-seurat_singlets <- SCTransform(seurat_singlets, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat_singlets <- SCTransform(seurat_singlets, seed.use = WORKFLOW_SEED, verbose = FALSE)
 require_min_cells_for_pca(seurat_singlets, context = "scdblfinder")
 seurat_singlets <- RunPCA(seurat_singlets, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_singlets <- RunUMAP(seurat_singlets, dims = 1:30, seed.use = WORKFLOW_SEED)

@@ -25,12 +25,11 @@ write_cluster_metadata <- function(seurat_obj, nclusters_output, cluster_ids_out
 
 seurat <- readRDS(seurat)
 sce <-as.SingleCellExperiment(seurat)
-mito_genes <- grep("(?i)^mt-", rownames(sce), value = TRUE)
-qc <- perCellQCMetrics(sce, subsets = list(Mito = mito_genes))
-high_mito <- isOutlier(qc$subsets_Mito_percent, nmads=3, type="higher")
+# No high-mitochondrial criterion: mitochondrial genes are recognisable by name in few species.
+qc <- perCellQCMetrics(sce)
 low_umi     <- isOutlier(qc$sum, nmads = 3, type = "lower")
 low_feature <- isOutlier(qc$detected, nmads = 3, type = "lower")
-discard <- high_mito | low_umi | low_feature
+discard <- low_umi | low_feature
 cells_to_keep <- colnames(seurat)[!discard]
 rm(sce)
 gc(verbose = FALSE)
@@ -44,9 +43,11 @@ seurat_filtered <- DietSeurat(seurat_filtered, assays = "RNA", dimreducs = NULL,
 rm(seurat)
 gc(verbose = FALSE)
 
+# percent.mt is kept as metadata only: "(?i)^mt-" finds mitochondrial genes in few species,
+# so it is neither filtered on nor regressed out (every species is processed the same way).
 seurat_filtered[["percent.mt"]] <- PercentageFeatureSet(seurat_filtered, pattern = "(?i)^mt-")
 require_min_cells_for_pca(seurat_filtered, context = "posthocfilter_mad")
-seurat_filtered <- SCTransform(seurat_filtered, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat_filtered <- SCTransform(seurat_filtered, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_filtered <- RunPCA(seurat_filtered, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_filtered <- RunUMAP(seurat_filtered, dims = 1:30, seed.use = WORKFLOW_SEED)
 seurat_filtered <- FindNeighbors(seurat_filtered, dims = 1:30)

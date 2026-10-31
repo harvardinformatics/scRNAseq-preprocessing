@@ -27,8 +27,10 @@ mat <- Read_CellBender_h5_Mat(cellbender_h5)
 # log_umi = log10(0) = -Inf, which makes SCTransform's make_cell_attr abort.
 # min.features = 1 drops only these empty barcodes and leaves all real cells intact.
 seurat <- CreateSeuratObject(mat, min.features = 1)
+# percent.mt is kept as metadata only: "(?i)^mt-" finds mitochondrial genes in few species,
+# so it is neither filtered on nor regressed out (every species is processed the same way).
 seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "(?i)^mt-")
-seurat <- SCTransform(seurat, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat <- SCTransform(seurat, seed.use = WORKFLOW_SEED, verbose = FALSE)
 require_min_cells_for_pca(seurat, context = "cellbender2seurat")
 seurat <- RunPCA(seurat, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat <- RunUMAP(seurat, dims = 1:30, seed.use = WORKFLOW_SEED)

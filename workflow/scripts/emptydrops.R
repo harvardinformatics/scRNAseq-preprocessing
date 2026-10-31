@@ -51,8 +51,10 @@ matrix_features <- rownames(droputil_filtered)
 rm(droputil_rawdata, dropletutils_out, droputil_filtered, is.cell, cell_barcodes)
 gc()
 seurat_droputil_filtered <- RenameAssays(seurat_droputil_filtered,originalexp="RNA")
+# percent.mt is kept as metadata only: "(?i)^mt-" finds mitochondrial genes in few species,
+# so it is neither filtered on nor regressed out (every species is processed the same way).
 seurat_droputil_filtered[["percent.mt"]] <- PercentageFeatureSet(seurat_droputil_filtered, pattern = "(?i)^mt-")
-seurat_droputil_filtered <- SCTransform(seurat_droputil_filtered, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat_droputil_filtered <- SCTransform(seurat_droputil_filtered, seed.use = WORKFLOW_SEED, verbose = FALSE)
 require_min_cells_for_pca(seurat_droputil_filtered, context = "emptydrops")
 seurat_droputil_filtered <- RunPCA(seurat_droputil_filtered, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_droputil_filtered <- RunUMAP(seurat_droputil_filtered, dims = 1:30, seed.use = WORKFLOW_SEED)

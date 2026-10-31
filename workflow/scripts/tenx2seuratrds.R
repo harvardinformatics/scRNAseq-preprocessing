@@ -24,8 +24,10 @@ write_cluster_metadata <- function(seurat_obj, nclusters_output, cluster_ids_out
 
 filtered_loaded <- Seurat::Read10X(filtered)
 seurat_obj <- CreateSeuratObject(counts = filtered_loaded)
+# percent.mt is kept as metadata only: "(?i)^mt-" finds mitochondrial genes in few species,
+# so it is neither filtered on nor regressed out (every species is processed the same way).
 seurat_obj[["percent.mt"]] <- PercentageFeatureSet(seurat_obj, pattern = "(?i)^mt-")
-seurat_obj <- SCTransform(seurat_obj, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat_obj <- SCTransform(seurat_obj, seed.use = WORKFLOW_SEED, verbose = FALSE)
 require_min_cells_for_pca(seurat_obj, context = "tenx2seuratrds")
 seurat_obj <- RunPCA(seurat_obj, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_obj <- RunUMAP(seurat_obj, dims = 1:30, seed.use = WORKFLOW_SEED)

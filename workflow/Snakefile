@@ -15,7 +15,6 @@ RESULTS_DIR = config.get("resultsDir", "results").rstrip("/")
 WORKFLOW_SEED = int(config.get("workflow_seed", config.get("workflowSeed", 12345)))
 config.setdefault("min_nfeature", 1)
 config.setdefault("min_ncount", 1)
-config.setdefault("max_mtdna", 100)
 
 EXCLUDED_SAMPLES = validated_config["excluded_samples"]
 PREFLIGHT_MIN_CELLS = validated_config["preflight_min_cells"]

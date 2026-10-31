@@ -21,11 +21,10 @@ rule posthocfilter_threshold:
     params:
         min_numfeatures = config["min_nfeature"],
         min_umicount = config["min_ncount"],
-        max_mtdna_pcent = config["max_mtdna"],
         seed=WORKFLOW_SEED
     shell:
         """
-        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script}  {input.data} {output.rds}         {params.min_numfeatures} {params.min_umicount} {params.max_mtdna_pcent} {output.nclusters} {output.cluster_ids} > {log} 2>&1
+        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script}  {input.data} {output.rds}         {params.min_numfeatures} {params.min_umicount} {output.nclusters} {output.cluster_ids} > {log} 2>&1
         """
 
 
@@ -50,9 +49,8 @@ rule posthocfilter_threshold_cellbender:
     params:
         min_numfeatures = config["min_nfeature"],
         min_umicount = config["min_ncount"],
-        max_mtdna_pcent = config["max_mtdna"],
         seed=WORKFLOW_SEED
     shell:
         """
-        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script}  {input.data} {output.rds}         {params.min_numfeatures} {params.min_umicount} {params.max_mtdna_pcent} {output.nclusters} {output.cluster_ids} > {log} 2>&1
+        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script}  {input.data} {output.rds}         {params.min_numfeatures} {params.min_umicount} {output.nclusters} {output.cluster_ids} > {log} 2>&1
         """

@@ -37,7 +37,8 @@ cellbender_learning_rate: 0.0001      # CellBender's default; the re-run uses ex
 cellbender_adaptive_rerun: true       # set false to always keep the single initial run
 min_nfeature: 200
 min_ncount: 500
-max_mtdna: 5
+# No % mitochondrial filter or SCTransform regression (removed 2026-10-30): mitochondrial genes
+# are recognisable by name in few species, so mt-based QC would treat samples unequally.
 
 downsampleSeuratObjectDir: "seurat_objects"
 downsampleResultsDir: "results/downsampling"

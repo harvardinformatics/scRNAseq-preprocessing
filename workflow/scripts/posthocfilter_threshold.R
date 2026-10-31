@@ -3,9 +3,8 @@ seurat <- args[1]
 filtered_output <- args[2]
 min_nfeature <- as.numeric(args[3])
 min_ncount <- as.numeric(args[4])
-max_mtdna <- as.numeric(args[5])
-nclusters_output <- args[6]
-cluster_ids_output <- args[7]
+nclusters_output <- args[5]
+cluster_ids_output <- args[6]
 
 library("Seurat")
 library("glmGamPoi")
@@ -28,7 +27,9 @@ write_cluster_metadata <- function(seurat_obj, nclusters_output, cluster_ids_out
 
 seurat <- readRDS(seurat)
 
-seurat_filtered <- subset(seurat, subset = nFeature_RNA > min_nfeature & nCount_RNA > min_ncount & percent.mt < max_mtdna)
+# No percent.mt cap: mitochondrial genes are recognisable by name in few species, so a % mt
+# threshold would filter only those samples.
+seurat_filtered <- subset(seurat, subset = nFeature_RNA > min_nfeature & nCount_RNA > min_ncount)
 
 # subset() carries the upstream SCT assay, PCA/UMAP embeddings and neighbor graphs into the
 # filtered object, but this rule recomputes all of them from RNA counts below. DietSeurat drops
@@ -41,7 +42,7 @@ rm(seurat)
 gc(verbose = FALSE)
 
 require_min_cells_for_pca(seurat_filtered, context = "posthocfilter_threshold")
-seurat_filtered <- SCTransform(seurat_filtered, vars.to.regress = "percent.mt", seed.use = WORKFLOW_SEED, verbose = FALSE)
+seurat_filtered <- SCTransform(seurat_filtered, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_filtered <- RunPCA(seurat_filtered, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_filtered <- RunUMAP(seurat_filtered, dims = 1:30, seed.use = WORKFLOW_SEED)
 seurat_filtered <- FindNeighbors(seurat_filtered, dims = 1:30)
