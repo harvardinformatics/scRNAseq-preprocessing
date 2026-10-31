@@ -153,5 +153,12 @@ def test_marker_checkpoint_expands_find_markers_for_materialized_clusters(tmp_pa
     for cluster in CLUSTERS:
         assert f"_markergenes_cluster{cluster}.csv" in combine_lines[0]
 
-    assert not cluster_ids.exists(), "combine_markers should remove cluster id temp input"
-    assert not manifest_dir.exists(), "combine_markers should remove checkpoint manifest directory"
+    # Temp files are Snakemake's to delete (a job removing files the main process tracks can crash
+    # it): the per-cluster CSVs and the manifest are temp inputs of combine_markers, so Snakemake
+    # removes them. cluster_ids.txt is a plain source file here (in the pipeline it is a temp
+    # output of the object rule), so it must survive.
+    for cluster in CLUSTERS:
+        per_cluster = prefix_path.with_name(f"{prefix_path.name}_markergenes_cluster{cluster}.csv")
+        assert not per_cluster.exists(), "Snakemake should remove per-cluster marker temp files"
+    assert not manifest_dir.exists(), "Snakemake should remove the checkpoint manifest once markers are combined"
+    assert cluster_ids.exists(), "combine_markers must not delete files Snakemake tracks"
