@@ -101,6 +101,7 @@ EMPTYDROP_METHODS = validated_config["emptydrop_methods"]
 POSTHOC_METHODS = validated_config["posthoc_methods"]
 CELLBENDER_LEARNING_RATE = validated_config["cellbender_learning_rate"]
 CELLBENDER_ADAPTIVE = validated_config["cellbender_adaptive_rerun"]
+CELLBENDER_CELL_CALLS = validated_config["cellbender_cell_calls"]
 DOWNSAMPLE_RESULTS_DIR = config.get("downsampleResultsDir", f"{RESULTS_DIR}/downsampling").rstrip("/")
 DOWNSAMPLE_SEURAT_OBJECT_DIR = config.get(
     "downsampleSeuratObjectDir",
@@ -115,6 +116,14 @@ TENX_PREFIXES = (
 EMPTYDROPS_PREFIXES = (
     expand("emptydrops/filtered_seurat_emptydrops_{sample}", sample=SAMPLES)
     if RUN_PREPROCESS and "emptydrops" in EMPTYDROP_METHODS
+    else []
+)
+# CellBender's cell calls on the raw counts (no background removal): a third cell-calling-stage
+# object beside tenx and emptydrops. It is not carried into decontamination, doublet removal or
+# post-hoc filtering.
+CELLBENDERCELLS_PREFIXES = (
+    expand("cellbendercells/filtered_seurat_cellbendercells_{sample}", sample=SAMPLES)
+    if RUN_PREPROCESS and CELLBENDER_CELL_CALLS
     else []
 )
 SOUPX_PREFIXES = (
@@ -208,6 +217,7 @@ DECONTX_POSTHOC_PREFIXES = (
 PREPROCESS_PREFIXES = (
     TENX_PREFIXES
     + EMPTYDROPS_PREFIXES
+    + CELLBENDERCELLS_PREFIXES
     + SOUPX_PREFIXES
     + CELLBENDER_PREFIXES
     + DECONTX_PREFIXES
@@ -296,6 +306,7 @@ include: "rules/install_doubletfinder.smk"
 include: "rules/doubletfinder.smk"
 include: "rules/cellbender.smk"
 include: "rules/cellbender2seurat.smk"
+include: "rules/cellbendercells.smk"
 include: "rules/soupx_emptydrops.smk"
 include: "rules/decontx.smk"
 include: "rules/posthocfilter_mad.smk"

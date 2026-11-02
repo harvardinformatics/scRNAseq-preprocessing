@@ -60,6 +60,8 @@ def test_testdata_dag_builds_with_dry_run():
         "decontx_raw",
         "cellbender",
         "cellbender2seurat",
+        "cellbendercells_matrix",
+        "cellbendercells2seurat",
         "doubletfinder",
         "scdblfinder",
         "posthocfilter_threshold",

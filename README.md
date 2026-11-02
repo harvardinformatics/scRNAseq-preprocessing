@@ -56,6 +56,10 @@ snakemake \
 
 On an HPC cluster, add a Snakemake profile so jobs are submitted to the scheduler instead of run locally — for example `--workflow-profile profiles/slurm --profile cannon` for the bundled SLURM / Harvard Cannon profiles. See `scrnaseq_preprocess_slurmrunner.sh` for a complete SLURM submission example.
 
+### CellBender cell calls without background removal
+
+CellBender calls cells and removes ambient RNA in one model, so the `cellbender_fromraw` objects carry the effects of both. With `cellbender_cell_calls: true` (requires `cellbender_fromraw`), the workflow also subsets the raw matrix to the barcodes CellBender called as cells (those in its `*_filtered.h5`), keeping their raw counts (`results/cellbendercells/{sample}_cellbendercells_filtered_matrix/`), and builds that matrix with the CellRanger rule's own script into `results/cellbendercells/filtered_seurat_cellbendercells_{sample}.rds`. Its markers and downsampling stability follow as for every other object. It compares directly with the CellRanger (`seurat_filtered/filtered_seurat_tenx_{sample}`) and emptyDrops (`emptydrops/filtered_seurat_emptydrops_{sample}`) cell-calling objects, and is not carried into decontamination, doublet removal or post-hoc filtering.
+
 ## Workflow modes
 
 The main Snakemake entrypoint supports three `workflow_mode` values in `config/config.yaml` or via `--config`:

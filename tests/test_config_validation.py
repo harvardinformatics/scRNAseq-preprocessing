@@ -1,4 +1,5 @@
 import copy
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -112,6 +113,10 @@ def test_default_config_has_required_keys_and_valid_values():
     assert isinstance(config["min_nfeature"], int) and config["min_nfeature"] > 0
     assert isinstance(config["min_ncount"], int) and config["min_ncount"] > 0
 
+    assert isinstance(config.get("cellbender_cell_calls", False), bool)
+    if config.get("cellbender_cell_calls"):
+        assert "cellbender_fromraw" in config["ambient_decon_methods"]
+
     assert config.get("preflight_mode", "skip") in {"off", "warn", "skip", "error"}
     if "preflight_min_cells" in config:
         assert isinstance(config["preflight_min_cells"], int) and config["preflight_min_cells"] > 0
@@ -135,6 +140,8 @@ def test_default_config_has_required_keys_and_valid_values():
         (lambda cfg: cfg.update({"cellbender_learning_rate": 0}), "cellbender_learning_rate must be a positive number", True),
         (lambda cfg: cfg.update({"cellbender_learning_rate": "fast"}), "cellbender_learning_rate must be a positive number", True),
         (lambda cfg: cfg.update({"cellbender_adaptive_rerun": "yes"}), "cellbender_adaptive_rerun must be a boolean", True),
+        (lambda cfg: cfg.update({"cellbender_cell_calls": "yes"}), "cellbender_cell_calls must be a boolean", True),
+        (lambda cfg: cfg.update({"ambient_decon_methods": ["soupx"], "cellbender_cell_calls": True}), "cellbender_cell_calls needs cellbender_fromraw", True),
     ],
 )
 def test_invalid_config_fails_early_with_clear_message(tmp_path, mutate, expected_message, override_results_dir):
@@ -182,11 +189,30 @@ def test_doublet_method_variant_changes_rule_all_targets(tmp_path):
 
 
 def test_decon_method_variant_can_exclude_cellbender_targets(tmp_path):
-    output, results_dir = run_variant_dry_run(tmp_path, ambient_decon_methods=["soupx"])
+    output, results_dir = run_variant_dry_run(
+        tmp_path, ambient_decon_methods=["soupx"], cellbender_cell_calls=False
+    )
 
     assert str(results_dir / "soupx" / "seurat_soupx_tenx_test_markergenes.csv") in output
     assert str(results_dir / "soupx" / "seurat_soupx_emptydrops_test_markergenes.csv") in output
     assert "cellbender" not in output
+
+
+def test_cellbender_cell_calls_variant_adds_a_cell_calling_stage_object(tmp_path):
+    output, results_dir = run_variant_dry_run(tmp_path, cellbender_cell_calls=True)
+
+    assert str(results_dir / "cellbendercells" / "filtered_seurat_cellbendercells_test_markergenes.csv") in output
+    assert "filtered_seurat_cellbendercells_test_clusterdownsampling.tsv" in output
+    # A cell-calling-stage object only: no decontamination, doublet or post-hoc object is built from it.
+    rds_paths = set(re.findall(r"\S*cellbendercells\S*\.rds", output))
+    assert rds_paths == {str(results_dir / "cellbendercells" / "filtered_seurat_cellbendercells_test.rds")}
+
+
+def test_cellbender_cell_calls_can_be_turned_off(tmp_path):
+    output, results_dir = run_variant_dry_run(tmp_path, cellbender_cell_calls=False)
+
+    assert str(results_dir / "cellbender_fromraw" / "seurat_cellbender_fromraw_test_markergenes.csv") in output
+    assert "cellbendercells" not in output
 
 
 def test_emptydrop_method_variant_excludes_emptydrops_specific_targets(tmp_path):

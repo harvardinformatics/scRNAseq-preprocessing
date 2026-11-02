@@ -28,6 +28,8 @@ DEFAULT_MIN_RAW_TO_CELL_RATIO = 2
 # CellBender's own default learning rate; the adaptive re-run uses exactly half of this.
 DEFAULT_CELLBENDER_LEARNING_RATE = 0.0001
 DEFAULT_CELLBENDER_ADAPTIVE_RERUN = True
+# The cellbendercells object (CellBender's cell calls on raw counts) is opt-in.
+DEFAULT_CELLBENDER_CELL_CALLS = False
 
 
 def require_non_empty_string(config_values, key, errors):
@@ -180,6 +182,10 @@ def validate_workflow_config(config_values):
 
         require_optional_positive_number(config_values, "cellbender_learning_rate", errors)
         require_optional_bool(config_values, "cellbender_adaptive_rerun", errors)
+        require_optional_bool(config_values, "cellbender_cell_calls", errors)
+        if config_values.get("cellbender_cell_calls") is True and "cellbender_fromraw" not in decon_methods:
+            errors.append("cellbender_cell_calls needs cellbender_fromraw in ambient_decon_methods: "
+                          "its CellBender run supplies the cell calls")
 
     if workflow_mode in {"preprocess_and_downsample", "downsample_only"}:
         if "downsampleSeuratObjectDir" in config_values:
@@ -219,6 +225,9 @@ def validate_workflow_config(config_values):
         ),
         "cellbender_adaptive_rerun": config_values.get(
             "cellbender_adaptive_rerun", DEFAULT_CELLBENDER_ADAPTIVE_RERUN
+        ),
+        "cellbender_cell_calls": config_values.get(
+            "cellbender_cell_calls", DEFAULT_CELLBENDER_CELL_CALLS
         ),
     }
 
