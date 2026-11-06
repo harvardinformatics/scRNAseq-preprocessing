@@ -36,7 +36,7 @@ By default Snakemake creates rule conda environments under `.snakemake/conda` in
 pytest tests/downsampling --run-downsample-workflow --snakemake-conda-prefix /path/to/snakemake-conda-envs -q
 ```
 
-Snakemake uses the explicit Linux lock file `workflow/envs/downsample_clusters.linux-64.pin.txt` when creating the rule environment on Linux. The workflow test uses two downsampling replicates, a 50% downsampling rate, and `workflowSeed=12345`.
+Snakemake uses the explicit Linux lock file `workflow/envs/scrnaseq_r.linux-64.pin.txt` (the shared R environment every R rule uses) when creating the rule environment on Linux. The workflow test uses two downsampling replicates, a 50% downsampling rate, and `workflowSeed=12345`.
 
 Reference outputs are compared by `(bootstrap_number, clusterid)`. The `max_jaccard` column is numeric-compared with `DOWNSAMPLE_REFERENCE_REL_TOLERANCE` defaulting to `1e-6` and `DOWNSAMPLE_REFERENCE_ABS_TOLERANCE` defaulting to `1e-8`.
 

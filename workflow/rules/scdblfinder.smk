@@ -10,7 +10,7 @@ rule scdblfinder:
     log:
         f"{RESULTS_DIR}/logs/scdblfinder/scdblfinder_{{decon_method}}_{{empty_method}}_{{sample}}.log"
     conda:
-        "../envs/scdblfinder.yml"
+        "../envs/scrnaseq_r.yml"
     wildcard_constraints:
         decon_method="soupx|decontx_raw",
         empty_method="tenx|emptydrops"
@@ -37,7 +37,7 @@ rule scdblfinder_cellbender:
     log:
         f"{RESULTS_DIR}/logs/scdblfinder/scdblfinder_cellbender_fromraw_{{sample}}.log"
     conda:
-        "../envs/scdblfinder.yml"
+        "../envs/scrnaseq_r.yml"
     resources:
         mem_mb = lambda wildcards, attempt: int(48000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))

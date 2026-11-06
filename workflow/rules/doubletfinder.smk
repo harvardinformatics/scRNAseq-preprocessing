@@ -11,7 +11,7 @@ rule doubletfinder:
     log:
         f"{RESULTS_DIR}/logs/doubletfinder/doubletfinder_{{decon_method}}_{{empty_method}}_{{sample}}.log"
     conda:
-        "../envs/doubletfinder.yml"
+        "../envs/scrnaseq_r.yml"
     wildcard_constraints:
         decon_method="soupx|decontx_raw",
         empty_method="tenx|emptydrops"
@@ -43,7 +43,7 @@ rule doubletfinder_cellbender:
     log:
         f"{RESULTS_DIR}/logs/doubletfinder/doubletfinder_cellbender_fromraw_{{sample}}.log"
     conda:
-        "../envs/doubletfinder.yml"
+        "../envs/scrnaseq_r.yml"
     resources:
         # DoubletFinder's paramSweep (sct=TRUE) synthesizes ~25% artificial doublets and
         # re-runs SCTransform across a pK sweep, so peak memory is a large multiple of the

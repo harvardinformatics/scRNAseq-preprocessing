@@ -116,14 +116,7 @@ jobs:
       fail-fast: false
       matrix:
         env_name:
-          - decontx.yml
-          - doubletfinder.yml
-          - downsample_clusters.yml
-          - emptydrops.yml
-          - posthocfilter.yml
-          - scdblfinder.yml
-          - soupx.yml
-          - tenx2seuratrds.yml
+          - scrnaseq_r.yml
     defaults:
       run:
         shell: bash -el {0}

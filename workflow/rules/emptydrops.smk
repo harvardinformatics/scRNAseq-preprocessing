@@ -11,7 +11,7 @@ rule emptydrops:
     log:
         f"{RESULTS_DIR}/logs/emptydrops/emptydrops_{{sample}}.log"
     conda:
-        "../envs/emptydrops.yml"
+        "../envs/scrnaseq_r.yml"
     resources:
         mem_mb = lambda wildcards, attempt: int(64000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))

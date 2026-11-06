@@ -52,7 +52,7 @@ snakemake \
     --cores 8
 ```
 
-`--use-conda` is required: each rule provisions its own pinned conda environment from `workflow/envs/`. Any config value can be overridden without editing the file, e.g. `--config workflow_mode=preprocess sampleTable=samplesheet.tsv`.
+`--use-conda` is required: every R rule runs in one pinned conda environment, `workflow/envs/scrnaseq_r.yml` (built from its lock file `scrnaseq_r.linux-64.pin.txt`), so all methods share the same R and package versions; CellBender runs in its digest-pinned container. Any config value can be overridden without editing the file, e.g. `--config workflow_mode=preprocess sampleTable=samplesheet.tsv`.
 
 On an HPC cluster, add a Snakemake profile so jobs are submitted to the scheduler instead of run locally — for example `--workflow-profile profiles/slurm --profile cannon` for the bundled SLURM / Harvard Cannon profiles. See `scrnaseq_preprocess_slurmrunner.sh` for a complete SLURM submission example.
 

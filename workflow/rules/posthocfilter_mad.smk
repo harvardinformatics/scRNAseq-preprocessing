@@ -10,7 +10,7 @@ rule posthocfilter_mad:
     log:
         f"{RESULTS_DIR}/logs/posthocfilter/posthocfilter_mad_{{doublet_method}}_{{decon_method}}_{{empty_method}}_{{sample}}.log"
     conda:
-        "../envs/posthocfilter.yml"
+        "../envs/scrnaseq_r.yml"
     wildcard_constraints:
         doublet_method="doubletfinder|scdblfinder",
         decon_method="soupx|decontx_raw",
@@ -38,7 +38,7 @@ rule posthocfilter_mad_cellbender:
     log:
         f"{RESULTS_DIR}/logs/posthocfilter/posthocfilter_mad_{{doublet_method}}_cellbender_fromraw_{{sample}}.log"
     conda:
-        "../envs/posthocfilter.yml"
+        "../envs/scrnaseq_r.yml"
     wildcard_constraints:
         doublet_method="doubletfinder|scdblfinder"
     resources:

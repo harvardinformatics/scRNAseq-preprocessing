@@ -12,7 +12,7 @@ rule soupx:
     log:
         f"{RESULTS_DIR}/logs/soupx/soupx_tenx_{{sample}}.log"
     conda:
-        "../envs/soupx.yml"
+        "../envs/scrnaseq_r.yml"
     resources:
         mem_mb = lambda wildcards, attempt: int(64000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))

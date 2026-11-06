@@ -14,7 +14,7 @@ rule downsample_clusters:
         seed=lambda wildcards: int(config.get("workflowSeed", config.get("workflow_seed", 12345))),
         n_replicates=N_DOWNSAMPLE_REPLICATES
     conda:
-        "../envs/downsample_clusters.yml"
+        "../envs/scrnaseq_r.yml"
     wildcard_constraints:
         downsample_target=DOWNSAMPLE_TARGET_REGEX
     resources:

@@ -6,7 +6,7 @@ checkpoint marker_manifest:
     log:
         f"{RESULTS_DIR}/logs/markers/{{prefix}}_marker_manifest.log"
     conda:
-        "../envs/tenx2seuratrds.yml"
+        "../envs/scrnaseq_r.yml"
     script:
         "../scripts/write_marker_manifest.py"
 
@@ -21,7 +21,7 @@ rule find_markers:
     log:
         f"{RESULTS_DIR}/logs/markers/{{prefix}}_markergenes_cluster{{cluster}}.log"
     conda:
-        "../envs/tenx2seuratrds.yml"
+        "../envs/scrnaseq_r.yml"
     resources:
         mem_mb=lambda wildcards, attempt: int(24000 * (2 ** (attempt - 1))),
         runtime=lambda wildcards, attempt: int(240 * (2 ** (attempt - 1)))
@@ -46,7 +46,7 @@ rule combine_markers:
     log:
         f"{RESULTS_DIR}/logs/markers/{{prefix}}_combine_markers.log"
     conda:
-        "../envs/tenx2seuratrds.yml"
+        "../envs/scrnaseq_r.yml"
     resources:
         mem_mb=lambda wildcards, attempt: int(4000 * (2 ** (attempt - 1))),
         runtime=lambda wildcards, attempt: int(60 * (2 ** (attempt - 1)))

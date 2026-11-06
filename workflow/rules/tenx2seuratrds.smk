@@ -10,7 +10,7 @@ rule tenx2seuratrds:
     log:
         f"{RESULTS_DIR}/logs/tenx2seuratrds/tenx2seuratrds_{{sample}}.log"
     conda:
-        "../envs/tenx2seuratrds.yml"
+        "../envs/scrnaseq_r.yml"
     resources:
         mem_mb = lambda wildcards, attempt: int(48000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))

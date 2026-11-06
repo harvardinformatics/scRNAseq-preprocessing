@@ -12,7 +12,7 @@ rule cellbendercells_matrix:
     log:
         f"{RESULTS_DIR}/logs/cellbendercells_matrix/cellbendercells_matrix_{{sample}}.log"
     conda:
-        "../envs/emptydrops.yml"
+        "../envs/scrnaseq_r.yml"
     resources:
         # Reads the whole raw matrix, as emptydrops does.
         mem_mb = lambda wildcards, attempt: int(64000 * (2 ** (attempt - 1))),
@@ -33,7 +33,7 @@ rule cellbendercells2seurat:
     log:
         f"{RESULTS_DIR}/logs/cellbendercells2seurat/cellbendercells2seurat_{{sample}}.log"
     conda:
-        "../envs/tenx2seuratrds.yml"
+        "../envs/scrnaseq_r.yml"
     resources:
         mem_mb = lambda wildcards, attempt: int(48000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))

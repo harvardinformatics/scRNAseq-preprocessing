@@ -22,7 +22,7 @@ rule decontx_raw:
     log:
         f"{RESULTS_DIR}/logs/decontx/decontx_raw_{{empty_method}}_{{sample}}.log"
     conda:
-        "../envs/decontx.yml"
+        "../envs/scrnaseq_r.yml"
     wildcard_constraints:
         empty_method="tenx|emptydrops"
     threads: 1

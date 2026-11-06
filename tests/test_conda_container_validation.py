@@ -12,29 +12,20 @@ import yaml
 ENV_DIR = Path("workflow/envs")
 RULE_DIR = Path("workflow/rules")
 TEST_SAMPLE_SHEET = Path("testdata/samplesheet_test.tsv")
-EXPECTED_ENV_FILES = {
-    "decontx.yml",
-    "doubletfinder.yml",
-    "downsample_clusters.yml",
-    "emptydrops.yml",
-    "posthocfilter.yml",
-    "scdblfinder.yml",
-    "soupx.yml",
-    "tenx2seuratrds.yml",
-}
+# Every R step runs in this one environment, so all methods share R and package versions.
+SHARED_R_ENV = "scrnaseq_r.yml"
+EXPECTED_ENV_FILES = {SHARED_R_ENV}
 CONDA_REFERENCE_RE = re.compile(r"conda:\s*\n\s*['\"]\.\./envs/([^'\"]+)['\"]")
 CONTAINER_RE = re.compile(r"container:\s*\n\s*['\"]([^'\"]+)['\"]")
 CELLBENDER_CONTAINER_URI = "docker://us.gcr.io/broad-dsde-methods/cellbender@sha256:093f2caf1ce4acae4541ea45e52ab7b220ca131ec73b4d1f664b85fe12850bae"
+DOUBLETFINDER_PINNED_RE = re.compile(r"chris-mcginnis-ucsf/DoubletFinder@[0-9a-f]{40}\b")
 
 R_IMPORTS_BY_ENV = {
-    "decontx.yml": ["Seurat", "tidyverse", "glmGamPoi", "bluster", "decontX"],
-    "doubletfinder.yml": ["Seurat", "tidyverse", "remotes", "fields", "Matrix", "KernSmooth", "ROCR", "igraph", "glmGamPoi", "bluster"],
-    "downsample_clusters.yml": ["Seurat", "tidyverse", "glmGamPoi"],
-    "emptydrops.yml": ["Seurat", "tidyverse", "DropletUtils", "scater", "glmGamPoi", "bluster", "Matrix", "R.utils"],
-    "posthocfilter.yml": ["Seurat", "tidyverse", "glmGamPoi", "scater", "bluster"],
-    "scdblfinder.yml": ["Seurat", "tidyverse", "scDblFinder", "glmGamPoi", "bluster"],
-    "soupx.yml": ["Seurat", "tidyverse", "glmGamPoi", "bluster", "SoupX"],
-    "tenx2seuratrds.yml": ["Seurat", "tidyverse", "scCustomize", "hdf5r", "glmGamPoi", "bluster", "presto"],
+    SHARED_R_ENV: [
+        "Seurat", "SeuratObject", "sctransform", "tidyverse", "glmGamPoi", "bluster", "Matrix", "R.utils",
+        "RcppParallel", "DropletUtils", "rhdf5", "scater", "scDblFinder", "BiocParallel", "decontX", "SoupX",
+        "scCustomize", "hdf5r", "presto", "remotes", "fields", "KernSmooth", "ROCR", "igraph",
+    ],
 }
 PYTHON_IMPORTS_BY_ENV = {}
 
@@ -128,6 +119,20 @@ def test_workflow_conda_env_files_are_well_formed_and_referenced_envs_exist():
 
     missing_references = sorted(name for name in referenced if not (root / ENV_DIR / name).exists())
     assert not missing_references, "rule conda env references are missing: " + ", ".join(missing_references)
+
+
+def test_every_conda_rule_uses_the_shared_r_environment():
+    root = repo_root()
+    rules_by_env = {}
+    for rule_path in sorted((root / RULE_DIR).glob("*.smk")):
+        for name in CONDA_REFERENCE_RE.findall(rule_path.read_text()):
+            rules_by_env.setdefault(name, set()).add(rule_path.name)
+    assert set(rules_by_env) == {SHARED_R_ENV}, rules_by_env
+
+
+def test_doubletfinder_install_is_pinned_to_a_commit():
+    rule_text = (repo_root() / RULE_DIR / "install_doubletfinder.smk").read_text()
+    assert DOUBLETFINDER_PINNED_RE.search(rule_text), "install_doubletfinder must install a fixed DoubletFinder commit"
 
 
 def test_workflow_container_declarations_are_explicit_and_recognized():
