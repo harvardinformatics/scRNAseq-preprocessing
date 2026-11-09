@@ -32,5 +32,7 @@ dependencies:
  - bioconductor-rhdf5
  - bioconductor-scater=1.38.1
  - bioconductor-scdblfinder=1.24.10
+ - r-xgboost=3.2.0  # held below 3.4: xgboost >= 3.4 makes scDblFinder < 1.27.12 skip its classifier
+ - libxgboost=3.2.0  # (training errors on early_stopping_rounds and is silently caught; dmlc/xgboost#12370)
  - bioconductor-decontx=1.8.0
  - bioconductor-biocparallel
