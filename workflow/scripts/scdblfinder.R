@@ -22,12 +22,16 @@ write_cluster_metadata <- function(seurat_obj, nclusters_output, cluster_ids_out
   writeLines(as.character(length(cluster_ids)), con = nclusters_output)
 }
 
-# scDblFinder fits its doublet classifier in scDblFinder:::.xgbtrain(), inside a tryCatch() that on
-# error silently keeps the pre-training score, so the step would "succeed" with heuristic calls
-# instead of the classifier's. That happens with xgboost >= 3.4, which rejects the
-# early_stopping_rounds that scDblFinder < 1.27.12 passes (dmlc/xgboost#12370). Count the training
-# calls that return a model and stop if any fails. trace(exit = ) runs as each call returns; it draws
-# no random numbers and changes no argument. With SerialParam every call runs in this R process.
+# scDblFinder fits its doublet classifier in scDblFinder:::.xgbtrain(), once per training round, inside a
+# tryCatch() that on error silently keeps the previous score. If every round fails, the calls come from the
+# pre-training heuristic score instead of the classifier, and the step would still "succeed". That happens
+# with xgboost >= 3.4, which rejects the early_stopping_rounds that scDblFinder < 1.27.12 passes
+# (dmlc/xgboost#12370). So watch every training call and stop if one fails on a non-empty training set, or
+# if no call returns a model. trace(exit = ) runs as each call returns; it draws no random numbers and
+# changes no argument. With SerialParam every call runs in this R process.
+# One failure is expected and tolerated: a round that excludes no cells trains on preds[-w, ] with w
+# empty, which in R selects zero rows, so xgboost errors and scDblFinder keeps the previous round's trained
+# score (seen on the small test-data objects with scDblFinder 1.24.10).
 watch_scdblfinder_training <- function() {
   ns <- asNamespace("scDblFinder")
   if (!exists(".xgbtrain", envir = ns, inherits = FALSE)) {
@@ -35,31 +39,43 @@ watch_scdblfinder_training <- function() {
          "so the classifier-training check in workflow/scripts/scdblfinder.R cannot run; update it.",
          call. = FALSE)
   }
+  training_data <- as.name(names(formals(get(".xgbtrain", envir = ns)))[1])
   calls <- new.env(parent = emptyenv())
-  calls$trained <- 0L
-  calls$failed <- 0L
+  calls$trained <- logical(0)
+  calls$rows <- integer(0)
   assign(".scdblfinder_training_calls", calls, envir = globalenv())
-  invisible(suppressMessages(trace(".xgbtrain", where = ns, print = FALSE, exit = quote({
+  invisible(suppressMessages(trace(".xgbtrain", where = ns, print = FALSE, exit = bquote({
     .calls <- get(".scdblfinder_training_calls", envir = globalenv())
-    .outcome <- if (is.null(returnValue(NULL))) "failed" else "trained"
-    assign(.outcome, get(.outcome, envir = .calls) + 1L, envir = .calls)
+    .calls$trained <- c(.calls$trained, !is.null(returnValue(NULL)))
+    .calls$rows <- c(.calls$rows, NROW(.(training_data)))
   }))))
   calls
 }
 
 stop_unless_scdblfinder_trained <- function(calls) {
   invisible(suppressMessages(untrace(".xgbtrain", where = asNamespace("scDblFinder"))))
-  n_calls <- calls$trained + calls$failed
-  if (n_calls == 0L || calls$failed > 0L) {
+  n_calls <- length(calls$trained)
+  n_trained <- sum(calls$trained)
+  failed_with_data <- sum(!calls$trained & calls$rows > 0L)
+  failed_empty <- sum(!calls$trained & calls$rows == 0L)
+  if (n_trained == 0L || failed_with_data > 0L) {
     stop(sprintf(paste0(
-      "scdblfinder: scDblFinder's doublet classifier did not train (%d of %d training calls failed%s). ",
-      "scDblFinder %s silently falls back to its pre-training score, so these would not be scDblFinder's ",
-      "calls. Known cause: xgboost >= 3.4 (installed: %s) with scDblFinder < 1.27.12; keep xgboost < 3.4 ",
-      "in workflow/envs/scrnaseq_r.yml and its lockfile."),
-      calls$failed, n_calls, if (n_calls == 0L) "; no training call was observed" else "",
+      "scdblfinder: scDblFinder's classifier training failed (%d of %d training calls returned no model, ",
+      "%d of them on a non-empty training set%s). scDblFinder %s silently keeps its previous score when ",
+      "training fails, so these would not be the classifier's calls. Known cause: xgboost >= 3.4 ",
+      "(installed: %s) with scDblFinder < 1.27.12; keep xgboost < 3.4 in workflow/envs/scrnaseq_r.yml ",
+      "and its lockfile."),
+      n_calls - n_trained, n_calls, failed_with_data, if (n_calls == 0L) "; no training call was observed" else "",
       as.character(packageVersion("scDblFinder")), as.character(packageVersion("xgboost"))), call. = FALSE)
   }
-  message(sprintf("scdblfinder: classifier trained in all %d training calls", n_calls))
+  if (failed_empty > 0L) {
+    message(sprintf(paste0(
+      "scdblfinder: classifier trained in %d of %d training calls; the other %d had an empty training set ",
+      "(a round that excludes no cells trains on zero rows), so scDblFinder kept the previous round's ",
+      "trained score"), n_trained, n_calls, failed_empty))
+  } else {
+    message(sprintf("scdblfinder: classifier trained in all %d training calls", n_calls))
+  }
 }
 
 seurat <- readRDS(seurat)
