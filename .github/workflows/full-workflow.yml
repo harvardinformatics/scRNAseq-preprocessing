@@ -92,3 +92,28 @@ jobs:
 
       - name: Run full test-data workflow
         run: pytest tests --run-workflow -q
+
+      # On failure, keep what is needed to compare the run with the cluster's: the outputs, Snakemake's logs
+      # (they hold any warning that the pin file could not be installed) and each rule environment's packages.
+      - name: Collect rule environment details
+        if: failure()
+        run: |
+          mkdir -p ci-diagnostics
+          ls -la .snakemake/conda > ci-diagnostics/snakemake-conda-dir.txt 2>&1 || true
+          for env_dir in .snakemake/conda/*_; do
+            [ -d "${env_dir}" ] || continue
+            conda list --explicit -p "${env_dir}" > "ci-diagnostics/$(basename "${env_dir}").explicit.txt" 2>&1 || true
+          done
+          cp .snakemake/conda/*.yaml .snakemake/conda/*.pin.txt ci-diagnostics/ 2>/dev/null || true
+          cp -r .snakemake/log ci-diagnostics/snakemake-log 2>/dev/null || true
+
+      - name: Upload test-data outputs and diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: full-workflow-outputs
+          path: |
+            testdata/results
+            ci-diagnostics
+          retention-days: 14
+          if-no-files-found: warn
