@@ -1,4 +1,6 @@
-args <- commandArgs(trailingOnly = TRUE)
+source("workflow/scripts/regression_utils.R")
+opts <- parse_script_args(commandArgs(trailingOnly = TRUE))
+args <- opts$positional
 cellbender_h5 <- args[1]
 output <- args[2]
 nclusters_output <- args[3]
@@ -27,10 +29,17 @@ mat <- Read_CellBender_h5_Mat(cellbender_h5)
 # log_umi = log10(0) = -Inf, which makes SCTransform's make_cell_attr abort.
 # min.features = 1 drops only these empty barcodes and leaves all real cells intact.
 seurat <- CreateSeuratObject(mat, min.features = 1)
-# percent.mt is kept as metadata only: "(?i)^mt-" finds mitochondrial genes in few species,
-# so it is neither filtered on nor regressed out (every species is processed the same way).
-seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "(?i)^mt-")
-seurat <- SCTransform(seurat, seed.use = WORKFLOW_SEED, verbose = FALSE)
+# percent.mt is stored as metadata and never filtered on. It counts the sample's mt_genes list (mapped through
+# the h5's feature IDs; min.features drops cells, never features) or, by default, the features matching
+# "(?i)^mt-", which finds mitochondrial genes in few species; SCTransform regresses out only --vars-to-regress
+# (none by default). See regression_utils.R.
+mt_features <- NULL
+if (!is.null(opts$mt_genes)) {
+  mt_features <- map_mt_genes(opts, read_h5_feature_ids(cellbender_h5), seurat, context = "cellbender2seurat")
+}
+seurat <- add_percent_mt(seurat, mt_features, opts, context = "cellbender2seurat")
+check_regression_vars(seurat, opts, context = "cellbender2seurat")
+seurat <- SCTransform(seurat, vars.to.regress = opts$vars_to_regress, seed.use = WORKFLOW_SEED, verbose = FALSE)
 require_min_cells_for_pca(seurat, context = "cellbender2seurat")
 seurat <- RunPCA(seurat, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat <- RunUMAP(seurat, dims = 1:30, seed.use = WORKFLOW_SEED)

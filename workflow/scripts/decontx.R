@@ -1,4 +1,6 @@
-args <- commandArgs(trailingOnly = TRUE)
+source("workflow/scripts/regression_utils.R")
+opts <- parse_script_args(commandArgs(trailingOnly = TRUE))
+args <- opts$positional
 filtered <- args[1]
 raw <- args[2]              # path to the raw 10x matrix dir (the background / empty-droplet source)
 seurat_base <- args[3]
@@ -57,6 +59,13 @@ gc()
 # itself drops any background barcode that also appears among the called cells, so the background
 # resolves to the empty droplets.
 raw_matrix <- Seurat::Read10X(raw)
+if (!is.null(opts$mt_genes)) {
+  # The mt_genes list is mapped through the raw matrix's features (the emptyDrops filtered matrix has no gene
+  # IDs of its own), which name the decontaminated rows only if both matrices list the same features in order.
+  require_same_features(rownames(filtered_matrix), rownames(raw_matrix), opts, context = "decontx",
+                        what = paste("the filtered matrix", filtered, "and the raw matrix", raw,
+                                     "do not list the same features in the same order"))
+}
 background <- raw_matrix[rownames(decon_counts), , drop = FALSE]
 
 # decontX requires >= 2 cell populations when z is supplied; fall back to its internal
@@ -92,10 +101,17 @@ gc()
 seurat_decontx <- CreateSeuratObject(counts = corrected_counts)
 rm(corrected_counts)
 gc()
-# percent.mt is kept as metadata only: "(?i)^mt-" finds mitochondrial genes in few species,
-# so it is neither filtered on nor regressed out (every species is processed the same way).
-seurat_decontx[["percent.mt"]] <- PercentageFeatureSet(seurat_decontx, pattern = "(?i)^mt-")
-seurat_decontx <- SCTransform(seurat_decontx, seed.use = WORKFLOW_SEED, verbose = FALSE)
+# percent.mt is stored as metadata and never filtered on. It counts the sample's mt_genes list (mapped through
+# the raw matrix's features, checked above to name these rows) or, by default, the features matching
+# "(?i)^mt-", which finds mitochondrial genes in few species; SCTransform regresses out only --vars-to-regress
+# (none by default). See regression_utils.R.
+mt_features <- NULL
+if (!is.null(opts$mt_genes)) {
+  mt_features <- map_mt_genes(opts, read_feature_ids(raw), seurat_decontx, context = "decontx")
+}
+seurat_decontx <- add_percent_mt(seurat_decontx, mt_features, opts, context = "decontx")
+check_regression_vars(seurat_decontx, opts, context = "decontx")
+seurat_decontx <- SCTransform(seurat_decontx, vars.to.regress = opts$vars_to_regress, seed.use = WORKFLOW_SEED, verbose = FALSE)
 require_min_cells_for_pca(seurat_decontx, context = "decontx")
 seurat_decontx <- RunPCA(seurat_decontx, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_decontx <- RunUMAP(seurat_decontx, dims = 1:30, seed.use = WORKFLOW_SEED)

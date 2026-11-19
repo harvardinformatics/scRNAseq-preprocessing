@@ -1,4 +1,6 @@
-args <- commandArgs(trailingOnly = TRUE)
+source("workflow/scripts/regression_utils.R")
+opts <- parse_script_args(commandArgs(trailingOnly = TRUE))
+args <- opts$positional
 seurat <- args[1]
 filtered_output <- args[2]
 min_nfeature <- as.numeric(args[3])
@@ -42,7 +44,11 @@ rm(seurat)
 gc(verbose = FALSE)
 
 require_min_cells_for_pca(seurat_filtered, context = "posthocfilter_threshold")
-seurat_filtered <- SCTransform(seurat_filtered, seed.use = WORKFLOW_SEED, verbose = FALSE)
+# percent.mt is the upstream step's (DietSeurat keeps the metadata), so a regression of it needs the same
+# mitochondrial features: the ones the upstream step mapped from the sample's mt_genes list (kept in the
+# object), or those matching "(?i)^mt-". See regression_utils.R.
+check_regression_vars(seurat_filtered, opts, context = "posthocfilter_threshold", mt_check_assay = "RNA")
+seurat_filtered <- SCTransform(seurat_filtered, vars.to.regress = opts$vars_to_regress, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_filtered <- RunPCA(seurat_filtered, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_filtered <- RunUMAP(seurat_filtered, dims = 1:30, seed.use = WORKFLOW_SEED)
 seurat_filtered <- FindNeighbors(seurat_filtered, dims = 1:30)

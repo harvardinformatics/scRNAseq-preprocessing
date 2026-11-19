@@ -4,7 +4,8 @@ N_DOWNSAMPLE_REPLICATES = int(config.get("nDownsampleReplicates", 100))
 rule downsample_clusters:
     input:
         seurat_object=lambda wildcards: DOWNSAMPLE_INPUTS_BY_TARGET[wildcards.downsample_target],
-        script="workflow/scripts/downsample_clusters.R"
+        script="workflow/scripts/downsample_clusters.R",
+        regression_helper="workflow/scripts/regression_utils.R"
     output:
         tsv=f"{DOWNSAMPLE_RESULTS_DIR}/{{downsample_target}}_clusterdownsampling.tsv"
     log:
@@ -12,7 +13,8 @@ rule downsample_clusters:
     params:
         downsample_rate=lambda wildcards: float(config.get("downsampleRate", 0.8)),
         seed=lambda wildcards: int(config.get("workflowSeed", config.get("workflow_seed", 12345))),
-        n_replicates=N_DOWNSAMPLE_REPLICATES
+        n_replicates=N_DOWNSAMPLE_REPLICATES,
+        vars_to_regress=VARS_TO_REGRESS_ARG
     conda:
         "../envs/scrnaseq_r.yml"
     wildcard_constraints:
@@ -29,5 +31,5 @@ rule downsample_clusters:
         runtime=lambda wildcards, attempt: int(900 * (2 ** (attempt - 1)))
     shell:
         """
-        SCRNASEQ_DOWNSAMPLE_SEED={params.seed} Rscript {input.script} {input.seurat_object} {output.tsv} {params.n_replicates} {params.downsample_rate} > {log} 2>&1
+        SCRNASEQ_DOWNSAMPLE_SEED={params.seed} Rscript {input.script} {input.seurat_object} {output.tsv} {params.n_replicates} {params.downsample_rate} --vars-to-regress={params.vars_to_regress} --sample={wildcards.downsample_target} > {log} 2>&1
         """

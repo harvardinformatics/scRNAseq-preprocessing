@@ -23,12 +23,13 @@ Both the filtered and the raw (unfiltered) matrices are required: the raw matrix
 
 ### Sample sheet
 
-Samples are declared in a **tab-separated** sample sheet with two required columns, one row per sample:
+Samples are declared in a **tab-separated** sample sheet with two required columns and one optional column, one row per sample:
 
 | Column | Description |
 |--------|-------------|
 | `sampleid` | Unique identifier for the sample; used to name that sample's output files. |
 | `tenx_datadir` | Path to the sample's Cell Ranger–style data directory (absolute, or relative to the working directory). |
+| `mt_genes` | Optional. Path to a plain-text file of the sample's mitochondrial gene IDs, one per line (absolute, or relative to the working directory). Leave it blank, or leave the column out, to find mitochondrial genes by name. See [Mitochondrial genes and regression](#mitochondrial-genes-and-regression). |
 
 For example (`samplesheet.tsv`):
 
@@ -38,7 +39,7 @@ neuron_10k_v3	/data/neuron_10k_v3/outs
 L8TX_181211_01_G12	/data/L8TX_181211_01_G12/outs
 ```
 
-Tell the workflow where the sample sheet is with the `sampleTable` key in `config/config.yaml` (default `samplesheet.tsv`), or override it on the command line with `--config sampleTable=/path/to/samplesheet.tsv`. The sample sheet is validated before the run starts: missing columns, blank or duplicate `sampleid` values, and `tenx_datadir` paths that do not exist or are missing any of the required matrices above all fail fast with an explanatory error.
+Tell the workflow where the sample sheet is with the `sampleTable` key in `config/config.yaml` (default `samplesheet.tsv`), or override it on the command line with `--config sampleTable=/path/to/samplesheet.tsv`. The sample sheet is validated before the run starts: missing columns, blank or duplicate `sampleid` values, `tenx_datadir` paths that do not exist or are missing any of the required matrices above, and `mt_genes` files that do not exist, list no gene ID or name none of the sample's features all fail fast with an explanatory error.
 
 ### Running the workflow
 
@@ -59,6 +60,27 @@ On an HPC cluster, add a Snakemake profile so jobs are submitted to the schedule
 ### CellBender cell calls without background removal
 
 CellBender calls cells and removes ambient RNA in one model, so the `cellbender_fromraw` objects carry the effects of both. With `cellbender_cell_calls: true` (requires `cellbender_fromraw`), the workflow also subsets the raw matrix to the barcodes CellBender called as cells (those in its `*_filtered.h5`), keeping their raw counts (`results/cellbendercells/{sample}_cellbendercells_filtered_matrix/`), and builds that matrix with the CellRanger rule's own script into `results/cellbendercells/filtered_seurat_cellbendercells_{sample}.rds`. Its markers and downsampling stability follow as for every other object. It compares directly with the CellRanger (`seurat_filtered/filtered_seurat_tenx_{sample}`) and emptyDrops (`emptydrops/filtered_seurat_emptydrops_{sample}`) cell-calling objects, and is not carried into decontamination, doublet removal or post-hoc filtering.
+
+### Mitochondrial genes and regression
+
+Every Seurat object carries `percent.mt`, the percentage of a cell's counts that come from mitochondrial genes, as cell metadata. No cell is filtered on it. Two options set how its genes are found and whether it, or another cell variable, is regressed out:
+
+- **Which genes are mitochondrial (`mt_genes`, per sample).** By default `percent.mt` counts the genes whose names (column 2 of `features.tsv.gz`) start with `mt-` in any case, the pattern `"(?i)^mt-"`. Many annotations name their mitochondrial genes otherwise (`ND1`, `COX1`, ...) or give them no recognisable name, and then `percent.mt` is 0 in every cell. For such a sample, list its mitochondrial gene IDs in a file, one per line, and give the file's path in the sample sheet's `mt_genes` column. The IDs are matched against column 1 of the sample's `features.tsv.gz` (with Cell Ranger, the reference GTF's `gene_id`); blank lines and lines starting with `#` are ignored. Listed IDs that are not features are reported and skipped, and a list that names none of the sample's features stops the run. Samples without a list keep the pattern.
+- **What is regressed out (`vars_to_regress`, in `config/config.yaml`).** The cell metadata columns that every `SCTransform` call regresses out of its residuals, as Seurat's `vars.to.regress`: any of `percent.mt`, `nCount_RNA` and `nFeature_RNA`. The default, `[]`, regresses nothing. It applies to every step that runs `SCTransform`, each downsampling replicate included; DoubletFinder's own internal `SCTransform` runs are not affected. With `percent.mt` in the list, every sample needs at least one mitochondrial feature, by the pattern or its list: a sample with none stops the run before any job starts, and its jobs fail if they run anyway.
+
+For example, to regress out `percent.mt` in a run that mixes a mouse sample, whose mitochondrial genes the pattern finds, with a rice sample, whose mitochondrial genes are listed by ID:
+
+```
+sampleid	tenx_datadir	mt_genes
+neuron_10k_v3	/data/neuron_10k_v3/outs
+sc_108	/data/osativa_sc108/outs	mt_genes/osativa_mt_gene_ids.txt
+```
+
+```yaml
+vars_to_regress: ["percent.mt"]
+```
+
+A list is mapped to the row names of each object that is built from the sample's features (the CellRanger, emptyDrops, CellBender, SoupX and decontX steps), and the object records the names in `misc$percent_mt_features`. The doublet-removal, post-hoc filtering and downsampling steps start from such an object and use the names it records. Changing a sample's list, or `vars_to_regress`, makes Snakemake rerun the steps that use it.
 
 ## Workflow modes
 

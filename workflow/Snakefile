@@ -17,6 +17,10 @@ config.setdefault("min_nfeature", 1)
 config.setdefault("min_ncount", 1)
 
 EXCLUDED_SAMPLES = validated_config["excluded_samples"]
+# Cell metadata columns every SCTransform call regresses out ([] by default: none), passed to the scripts as
+# --vars-to-regress=A,B (empty for none).
+VARS_TO_REGRESS = validated_config["vars_to_regress"]
+VARS_TO_REGRESS_ARG = ",".join(VARS_TO_REGRESS)
 PREFLIGHT_MIN_CELLS = validated_config["preflight_min_cells"]
 PREFLIGHT_MODE = validated_config["preflight_mode"]
 if RUN_PREPROCESS:
@@ -88,8 +92,22 @@ if RUN_PREPROCESS:
                 + "\n  - ".join(cb_errors)
                 + "\nFix the raw inputs or add these samples to excluded_samples."
             )
+
+    # Mitochondrial genes (reads only each sample's features file, and only for samples with an mt_genes list
+    # or when percent.mt is regressed out): an mt_genes list must name at least one of the sample's features
+    # (the IDs it names that are not features are reported and skipped), and regressing percent.mt needs a
+    # mitochondrial feature in every sample, from its list or by the "(?i)^mt-" pattern. The R scripts check
+    # the same at run time.
+    if SAMPLES:
+        mt_errors, mt_warnings = mt_gene_checks(sampleinfo, VARS_TO_REGRESS)
+        for message in mt_warnings:
+            print(f"[mt_genes] WARNING: {message}", file=sys.stderr)
+        if mt_errors:
+            raise ValueError(
+                "[mt_genes] mitochondrial-gene problem(s):\n  - " + "\n  - ".join(mt_errors)
+            )
 else:
-    sampleinfo = pd.DataFrame({"sampleid": [], "tenx_datadir": []})
+    sampleinfo = pd.DataFrame({"sampleid": [], "tenx_datadir": [], "mt_genes": []})
     SAMPLES = []
 
 with open("profiles/slurm/config.yaml") as f:

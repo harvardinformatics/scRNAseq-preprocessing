@@ -1,6 +1,10 @@
 import re
 
+include: "rules/common.smk"
+
 RESULTS_DIR = config.get("resultsDir", "results").rstrip("/")
+# Cell metadata columns each replicate's SCTransform regresses out ([] by default: none).
+VARS_TO_REGRESS_ARG = ",".join(validated_vars_to_regress(config))
 DOWNSAMPLE_RESULTS_DIR = config.get("downsampleResultsDir", RESULTS_DIR).rstrip("/")
 DOWNSAMPLE_SEURAT_OBJECT_DIR = config.get(
     "downsampleSeuratObjectDir",

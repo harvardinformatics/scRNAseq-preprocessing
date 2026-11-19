@@ -1,4 +1,6 @@
-args <- commandArgs(trailingOnly = TRUE)
+source("workflow/scripts/regression_utils.R")
+opts <- parse_script_args(commandArgs(trailingOnly = TRUE))
+args <- opts$positional
 seurat <- args[1]
 filtered_output <- args[2]
 nclusters_output <- args[3]
@@ -43,11 +45,14 @@ seurat_filtered <- DietSeurat(seurat_filtered, assays = "RNA", dimreducs = NULL,
 rm(seurat)
 gc(verbose = FALSE)
 
-# percent.mt is kept as metadata only: "(?i)^mt-" finds mitochondrial genes in few species,
-# so it is neither filtered on nor regressed out (every species is processed the same way).
-seurat_filtered[["percent.mt"]] <- PercentageFeatureSet(seurat_filtered, pattern = "(?i)^mt-")
+# percent.mt is stored as metadata and never filtered on. It counts the mitochondrial features the upstream step
+# mapped from the sample's mt_genes list (kept in the object) or, by default, the features matching "(?i)^mt-",
+# which finds mitochondrial genes in few species; SCTransform regresses out only --vars-to-regress (none by
+# default). See regression_utils.R.
+seurat_filtered <- add_percent_mt(seurat_filtered, stored_mt_features(seurat_filtered), opts, context = "posthocfilter_mad")
 require_min_cells_for_pca(seurat_filtered, context = "posthocfilter_mad")
-seurat_filtered <- SCTransform(seurat_filtered, seed.use = WORKFLOW_SEED, verbose = FALSE)
+check_regression_vars(seurat_filtered, opts, context = "posthocfilter_mad")
+seurat_filtered <- SCTransform(seurat_filtered, vars.to.regress = opts$vars_to_regress, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_filtered <- RunPCA(seurat_filtered, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_filtered <- RunUMAP(seurat_filtered, dims = 1:30, seed.use = WORKFLOW_SEED)
 seurat_filtered <- FindNeighbors(seurat_filtered, dims = 1:30)
