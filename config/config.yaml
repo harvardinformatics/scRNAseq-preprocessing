@@ -46,9 +46,9 @@ min_nfeature: 200
 min_ncount: 500
 # No % mitochondrial filter (max_mtdna was removed 2026-10-30): mitochondrial genes are recognisable by
 # name in few species, so an mt cap would treat samples unequally. percent.mt is always kept as cell
-# metadata: by default it counts the genes whose names match "(?i)^mt-"; a sample-sheet column mt_genes
-# can instead give, per sample, a file of its mitochondrial gene IDs (README, "Mitochondrial genes and
-# regression").
+# metadata, the percentage of a cell's RNA counts from mitochondrial genes: by default the genes whose
+# names match "(?i)^mt-"; a sample-sheet column mt_genes can instead give, per sample, a file of its
+# mitochondrial gene IDs (README, "Mitochondrial genes and regression").
 #
 # vars_to_regress: cell metadata columns that every SCTransform call regresses out of its residuals
 # (Seurat's vars.to.regress), in preprocessing and in each downsampling replicate. Any of "percent.mt",

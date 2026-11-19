@@ -8,12 +8,12 @@
 #                          percent.mt counts the features whose names match MT_PATTERN.
 #   --sample=NAME          the sample, named in messages.
 # With every option empty or absent, a script computes percent.mt with MT_PATTERN and calls SCTransform with
-# vars.to.regress = NULL (its default), exactly as before these options existed.
+# vars.to.regress = NULL (its default), as before these options existed.
 #
-# A percent.mt that SCTransform regresses out is computed on the RNA assay - the counts SCTransform models -
-# by every script, whatever its object's default assay: the doublet-removal scripts' inputs default to their SCT
-# assay, and the scripts that keep their input's percent.mt recompute it. Otherwise each script computes it as
-# before, on its object's default assay.
+# percent.mt is, in every saved object, the share of each cell's RNA counts (nCount_RNA) in its mitochondrial
+# features. Every script that saves an object computes it with add_percent_mt(), on the RNA assay whatever the
+# object's default assay, so it is never computed on an SCT assay (the doublet-removal scripts' inputs default
+# to theirs) nor carried over from an upstream object that computed it there.
 #
 # A list is mapped to row names once, by the script that builds the object from the sample's features: a
 # listed ID selects the rows whose column-1 ID it is, and the row names are taken from the object itself, so
@@ -170,68 +170,57 @@ stored_mt_features <- function(object) {
   object@misc[[MT_FEATURES_MISC]]
 }
 
-# The mitochondrial features of `assay`: the listed ones it has, or those matching MT_PATTERN.
-mt_features_in_assay <- function(object, mt_features, assay) {
-  rows <- rownames(object[[assay]])
+# The mitochondrial features of the RNA assay: the listed ones it has, or those matching MT_PATTERN.
+rna_mt_features <- function(object, mt_features) {
+  rows <- rownames(object[["RNA"]])
   if (is.null(mt_features)) grep(pattern = MT_PATTERN, x = rows, value = TRUE) else intersect(mt_features, rows)
 }
 
 # Regressing percent.mt needs at least one mitochondrial feature; otherwise percent.mt is 0 in every cell
 # and the regression silently does nothing.
-require_mt_features <- function(object, mt_features, opts, context, assay = DefaultAssay(object)) {
-  found <- mt_features_in_assay(object, mt_features, assay)
-  if (length(found) > 0) {
-    return(invisible(found))
+require_mt_features <- function(object, mt_features, opts, context) {
+  if (length(rna_mt_features(object, mt_features)) > 0) {
+    return(invisible(TRUE))
   }
   prefix <- message_prefix(opts, context)
   if (is.null(mt_features)) {
     stop(sprintf(paste0(
-      "%s: percent.mt is in vars_to_regress, but no feature of the %s assay matches \"%s\", so percent.mt ",
+      "%s: percent.mt is in vars_to_regress, but no feature of the RNA assay matches \"%s\", so percent.mt ",
       "is 0 in every cell. List the sample's mitochondrial gene IDs in a file and give its path in the ",
       "sample sheet's mt_genes column, or remove percent.mt from vars_to_regress."),
-      prefix, assay, MT_PATTERN), call. = FALSE)
+      prefix, MT_PATTERN), call. = FALSE)
   }
   stop(sprintf(paste0(
     "%s: percent.mt is in vars_to_regress, but none of the %d features mapped from the sample's mt_genes ",
-    "list is in the %s assay (e.g. %s), so percent.mt is 0 in every cell. Check the mt_genes list, or ",
+    "list is in the RNA assay (e.g. %s), so percent.mt is 0 in every cell. Check the mt_genes list, or ",
     "remove percent.mt from vars_to_regress."),
-    prefix, length(mt_features), assay, first_few(mt_features)), call. = FALSE)
+    prefix, length(mt_features), first_few(mt_features)), call. = FALSE)
 }
 
-# percent.mt with PercentageFeatureSet(): from the listed features (mt_features, row names) or, when there is
-# no list (NULL), from the features whose names match MT_PATTERN. When percent.mt is regressed out it is
-# computed on the RNA assay, which needs a mitochondrial feature; otherwise on the object's default assay, as
-# before. A list is stored in the object for the steps that start from it.
+# percent.mt with PercentageFeatureSet() on the RNA assay, whatever the object's default assay: the share of
+# each cell's RNA counts (nCount_RNA) in the listed features (mt_features, row names) or, when there is no list
+# (NULL), in the features whose names match MT_PATTERN. Regressing percent.mt out needs a mitochondrial feature.
+# A list is stored in the object for the steps that start from it. These are the workflow's only calls of
+# PercentageFeatureSet(), each with assay = "RNA" (tests/test_vars_to_regress.py checks both).
 add_percent_mt <- function(object, mt_features, opts, context) {
   regressed <- "percent.mt" %in% opts$vars_to_regress
-  assay <- if (regressed) "RNA" else DefaultAssay(object)
   if (regressed) {
-    require_mt_features(object, mt_features, opts, context, assay = assay)
+    require_mt_features(object, mt_features, opts, context)
   }
   if (is.null(mt_features)) {
     if (regressed) {
-      message(sprintf("%s: percent.mt from the %d feature(s) matching \"%s\" (%s assay)", message_prefix(opts, context),
-                      length(mt_features_in_assay(object, NULL, assay)), MT_PATTERN, assay))
+      message(sprintf("%s: percent.mt from the %d feature(s) matching \"%s\" (RNA assay)", message_prefix(opts, context),
+                      length(rna_mt_features(object, NULL)), MT_PATTERN))
     }
-    object[["percent.mt"]] <- PercentageFeatureSet(object, pattern = MT_PATTERN, assay = assay)
+    object[["percent.mt"]] <- PercentageFeatureSet(object, pattern = MT_PATTERN, assay = "RNA")
   } else {
-    used <- mt_features_in_assay(object, mt_features, assay)
-    message(sprintf("%s: percent.mt from %d of the sample's %d mt_genes feature(s) (%s assay)",
-                    message_prefix(opts, context), length(used), length(mt_features), assay))
-    object[["percent.mt"]] <- PercentageFeatureSet(object, features = used, assay = assay)
+    used <- rna_mt_features(object, mt_features)
+    message(sprintf("%s: percent.mt from %d of the sample's %d mt_genes feature(s) (RNA assay)",
+                    message_prefix(opts, context), length(used), length(mt_features)))
+    object[["percent.mt"]] <- PercentageFeatureSet(object, features = used, assay = "RNA")
     object@misc[[MT_FEATURES_MISC]] <- mt_features
   }
   object
-}
-
-# For a script that keeps its input's percent.mt (posthocfilter_threshold, downsample_clusters): when percent.mt
-# is regressed out, recompute it on the RNA assay as add_percent_mt() does, from the mitochondrial features the
-# input recorded from the sample's mt_genes list, or those matching MT_PATTERN. Otherwise keep the input's.
-refresh_regressed_percent_mt <- function(object, opts, context, mt_features = stored_mt_features(object)) {
-  if (!"percent.mt" %in% opts$vars_to_regress) {
-    return(object)
-  }
-  add_percent_mt(object, mt_features, opts, context)
 }
 
 # Before SCTransform(vars.to.regress = opts$vars_to_regress): every variable must be a cell metadata column.

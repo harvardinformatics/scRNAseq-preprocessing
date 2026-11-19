@@ -59,11 +59,11 @@ seurat_singlets <- subset(seurat, cells = rownames(seurat@meta.data)[seurat@meta
 rm(seurat)
 gc()
 
-# percent.mt is stored as metadata and never filtered on. It counts the mitochondrial features the upstream step
-# mapped from the sample's mt_genes list (kept in the object) or, by default, the features matching "(?i)^mt-",
-# which finds mitochondrial genes in few species. SCTransform regresses out only --vars-to-regress (none by
-# default); a regressed percent.mt is computed on the RNA counts, otherwise on the default assay as before,
-# which here is the input's SCT assay. See regression_utils.R.
+# percent.mt is stored as metadata and never filtered on. It is computed on the RNA counts, although this
+# object's default assay is the input's SCT assay, from the mitochondrial features the upstream step mapped from
+# the sample's mt_genes list (kept in the object) or, by default, the features matching "(?i)^mt-", which finds
+# mitochondrial genes in few species. SCTransform regresses out only --vars-to-regress (none by default). See
+# regression_utils.R.
 seurat_singlets <- add_percent_mt(seurat_singlets, stored_mt_features(seurat_singlets), opts, context = "doubletfinder")
 check_regression_vars(seurat_singlets, opts, context = "doubletfinder")
 seurat_singlets <- SCTransform(seurat_singlets, vars.to.regress = opts$vars_to_regress, seed.use = WORKFLOW_SEED, verbose = FALSE)
