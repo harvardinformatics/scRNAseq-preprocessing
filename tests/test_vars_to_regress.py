@@ -98,6 +98,7 @@ def run_script(build, script, *args):
 def check(build, *args):
     result = run([build["rscript"], CHECK_PERCENT_MT, *args])
     assert result.returncode == 0, output_of(result)
+    return output_of(result)
 
 
 def test_rule_maps_the_list_and_regresses_percent_mt(regressed_build):
@@ -121,28 +122,31 @@ def test_list_without_regression_only_changes_percent_mt(regressed_build):
     check(regressed_build, "built", rds, TEST_MATRIX, MT_GENES_TEST, "none")
 
 
-def test_later_steps_reuse_the_recorded_features(regressed_build):
+def test_later_steps_regress_an_rna_percent_mt_from_the_recorded_features(regressed_build):
     tmp = regressed_build["tmp"]
     upstream = regressed_build["rds"]
 
-    # scDblFinder recomputes percent.mt on its input's SCT assay, from the features the input records.
+    # scDblFinder's input defaults to its SCT assay, as DoubletFinder's does; the percent.mt it regresses out
+    # is computed on the RNA counts, from the features its input records.
     singlets = tmp / "scdblfinder.rds"
     result = run_script(
         regressed_build, "scdblfinder.R", upstream, singlets, tmp / "sc_n.txt", tmp / "sc_ids.txt",
         "--vars-to-regress=percent.mt", "--sample=test",
     )
     assert result.returncode == 0, output_of(result)
-    assert "scdblfinder (sample test): percent.mt from" in output_of(result)
-    check(regressed_build, "carried", singlets, upstream, "sct", "percent.mt")
+    assert "scdblfinder (sample test): percent.mt from 5 of the sample's 5 mt_genes feature(s) (RNA assay)" in output_of(result)
+    checked = check(regressed_build, "carried", singlets, upstream, "rna", "percent.mt")
+    assert "upstream default assay: SCT;" in checked
 
-    # The threshold filter keeps its input's percent.mt and regresses it out again.
+    # The threshold filter recomputes the percent.mt it regresses out on the RNA counts too.
     filtered = tmp / "posthocfilter_threshold.rds"
     result = run_script(
         regressed_build, "posthocfilter_threshold.R", singlets, filtered, "1", "1", tmp / "pt_n.txt",
         tmp / "pt_ids.txt", "--vars-to-regress=percent.mt", "--sample=test",
     )
     assert result.returncode == 0, output_of(result)
-    check(regressed_build, "carried", filtered, singlets, "kept", "percent.mt")
+    assert "posthocfilter_threshold (sample test): percent.mt from 5 of the sample's 5 mt_genes feature(s) (RNA assay)" in output_of(result)
+    check(regressed_build, "carried", filtered, singlets, "rna", "percent.mt")
 
     # Every downsampling replicate regresses it out too.
     table = tmp / "downsampling.tsv"
@@ -151,6 +155,7 @@ def test_later_steps_reuse_the_recorded_features(regressed_build):
         "--sample=test",
     )
     assert result.returncode == 0, output_of(result)
+    assert "downsample_clusters (sample test): percent.mt from 5 of the sample's 5 mt_genes feature(s) (RNA assay)" in output_of(result)
     assert "downsample_clusters (sample test): SCTransform regresses out percent.mt" in output_of(result)
     assert table.read_text().startswith("clusterid\tmax_jaccard\tbootstrap_number\n")
 
@@ -171,7 +176,19 @@ def test_percent_mt_regression_without_a_mitochondrial_feature_fails(regressed_b
     assert "sample sheet's mt_genes column" in output
     assert not rds.exists()
 
-    # A later step regressing a percent.mt computed with the pattern fails the same way.
+    # So does a step whose input defaults to its SCT assay: the check, like the percent.mt it guards, is on RNA.
+    rds = tmp / "no_mt_scdblfinder.rds"
+    result = run_script(
+        regressed_build, "scdblfinder.R", PATTERN_OBJECT, rds, tmp / "no_mt_sc_n.txt", tmp / "no_mt_sc_ids.txt",
+        "--vars-to-regress=percent.mt", "--sample=test",
+    )
+    assert result.returncode != 0
+    assert (
+        'scdblfinder (sample test): percent.mt is in vars_to_regress, but no feature of the RNA assay matches'
+    ) in output_of(result)
+    assert not rds.exists()
+
+    # And a step that keeps its input's percent.mt, computed with the pattern.
     rds = tmp / "no_mt_posthoc.rds"
     result = run_script(
         regressed_build, "posthocfilter_threshold.R", PATTERN_OBJECT, rds, "1", "1", tmp / "no_mt_posthoc_n.txt",

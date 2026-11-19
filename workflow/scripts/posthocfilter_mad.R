@@ -47,8 +47,8 @@ gc(verbose = FALSE)
 
 # percent.mt is stored as metadata and never filtered on. It counts the mitochondrial features the upstream step
 # mapped from the sample's mt_genes list (kept in the object) or, by default, the features matching "(?i)^mt-",
-# which finds mitochondrial genes in few species; SCTransform regresses out only --vars-to-regress (none by
-# default). See regression_utils.R.
+# which finds mitochondrial genes in few species, on the RNA counts; SCTransform regresses out only
+# --vars-to-regress (none by default). See regression_utils.R.
 seurat_filtered <- add_percent_mt(seurat_filtered, stored_mt_features(seurat_filtered), opts, context = "posthocfilter_mad")
 require_min_cells_for_pca(seurat_filtered, context = "posthocfilter_mad")
 check_regression_vars(seurat_filtered, opts, context = "posthocfilter_mad")

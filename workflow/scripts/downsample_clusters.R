@@ -123,8 +123,9 @@ if (!"seurat_clusters" %in% colnames(seurat_obj@meta.data)) {
 # peak per replicate on a 77k-cell dataset; the gap grows with cell count). Results are
 # unchanged: SCTransform operates on the RNA counts, which are preserved exactly.
 # Each replicate's SCTransform regresses out --vars-to-regress (none by default; see regression_utils.R).
-# percent.mt is the input's, so a regression of it needs the mitochondrial features the input recorded from the
-# sample's mt_genes list, or those matching "(?i)^mt-"; nCount_RNA and nFeature_RNA are recomputed below.
+# nCount_RNA and nFeature_RNA are recomputed below. percent.mt is the input's; when it is regressed out it is
+# recomputed on these RNA counts, from the mitochondrial features the input recorded from the sample's mt_genes
+# list or those matching "(?i)^mt-" (a cell's value does not change when cells are subsampled).
 mt_features <- stored_mt_features(seurat_obj)
 keep_meta <- intersect(c("seurat_clusters", "percent.mt"), colnames(seurat_obj@meta.data))
 seurat_obj <- CreateSeuratObject(
@@ -132,8 +133,8 @@ seurat_obj <- CreateSeuratObject(
   meta.data = seurat_obj@meta.data[, keep_meta, drop = FALSE]
 )
 gc(verbose = FALSE)
-check_regression_vars(seurat_obj, opts, context = "downsample_clusters", mt_check_assay = "RNA",
-                      mt_features = mt_features)
+seurat_obj <- refresh_regressed_percent_mt(seurat_obj, opts, context = "downsample_clusters", mt_features = mt_features)
+check_regression_vars(seurat_obj, opts, context = "downsample_clusters")
 
 replicate_results <- vector("list", n_replicates)
 for (replicate in seq_len(n_replicates)) {

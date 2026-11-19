@@ -44,10 +44,12 @@ rm(seurat)
 gc(verbose = FALSE)
 
 require_min_cells_for_pca(seurat_filtered, context = "posthocfilter_threshold")
-# percent.mt is the upstream step's (DietSeurat keeps the metadata), so a regression of it needs the same
-# mitochondrial features: the ones the upstream step mapped from the sample's mt_genes list (kept in the
-# object), or those matching "(?i)^mt-". See regression_utils.R.
-check_regression_vars(seurat_filtered, opts, context = "posthocfilter_threshold", mt_check_assay = "RNA")
+# percent.mt is the upstream step's (DietSeurat keeps the metadata). When it is regressed out it is recomputed
+# on the RNA assay, from the mitochondrial features the upstream step mapped from the sample's mt_genes list
+# (kept in the object) or those matching "(?i)^mt-", as every step computes a regressed percent.mt. See
+# regression_utils.R.
+seurat_filtered <- refresh_regressed_percent_mt(seurat_filtered, opts, context = "posthocfilter_threshold")
+check_regression_vars(seurat_filtered, opts, context = "posthocfilter_threshold")
 seurat_filtered <- SCTransform(seurat_filtered, vars.to.regress = opts$vars_to_regress, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_filtered <- RunPCA(seurat_filtered, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_filtered <- RunUMAP(seurat_filtered, dims = 1:30, seed.use = WORKFLOW_SEED)

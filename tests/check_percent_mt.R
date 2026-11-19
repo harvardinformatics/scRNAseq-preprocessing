@@ -6,10 +6,12 @@
 #   check_percent_mt.R own     RDS FEATURES MT_GENES REGRESSED
 #       As built, for objects whose counts are not a 10x matrix's (SoupX, decontX, CellBender): the features
 #       come from FEATURES (a 10x matrix directory or a CellBender .h5), percent.mt from the object's counts.
-#   check_percent_mt.R carried RDS UPSTREAM_RDS sct|rna|kept REGRESSED
+#   check_percent_mt.R carried RDS UPSTREAM_RDS rna|sct|kept REGRESSED
 #       RDS was made from UPSTREAM_RDS by a later step, which must reuse the features UPSTREAM_RDS records:
-#       "sct" if the step recomputed percent.mt on the upstream SCT assay (doubletfinder, scdblfinder), "rna"
-#       on the RNA counts (posthocfilter_mad), "kept" if it kept the upstream values (posthocfilter_threshold).
+#       "rna" if the step computed percent.mt on the RNA counts, as every step does for a regressed percent.mt;
+#       "sct" on the upstream SCT assay (doubletfinder, scdblfinder without regression); "kept" if it kept the
+#       upstream values (posthocfilter_threshold without regression). With "rna" and an upstream object whose
+#       SCT assay would give other values, the upstream default assay and the gap are reported.
 #
 # REGRESSED is the comma-separated --vars-to-regress the object was built with, or "none". Its SCTransform
 # command must record exactly those variables, and with percent.mt among them every residual (scale.data
@@ -75,15 +77,22 @@ if (mode %in% c("built", "own")) {
   }
   cells <- colnames(obj)
   if (!all(cells %in% colnames(upstream))) fail("cells missing from the upstream object")
-  if (args[4] == "sct") {
+  rna_counts <- LayerData(upstream, assay = "RNA", layer = "counts")
+  rna_based <- 100 * colSums(rna_counts[stored, cells, drop = FALSE]) / colSums(rna_counts[, cells, drop = FALSE])
+  sct_based <- NULL
+  if ("SCT" %in% Assays(upstream)) {
     sct_counts <- LayerData(upstream, assay = "SCT", layer = "counts")
     used <- intersect(stored, rownames(sct_counts))
-    expected <- 100 * colSums(sct_counts[used, cells, drop = FALSE]) / upstream$nCount_SCT[cells]
-  } else if (args[4] == "rna") {
-    rna_counts <- LayerData(upstream, assay = "RNA", layer = "counts")
-    expected <- 100 * colSums(rna_counts[stored, cells, drop = FALSE]) / colSums(rna_counts[, cells, drop = FALSE])
-  } else {
-    expected <- upstream$percent.mt[cells]
+    sct_based <- 100 * colSums(sct_counts[used, cells, drop = FALSE]) / upstream$nCount_SCT[cells]
+  }
+  expected <- switch(args[4], rna = rna_based, sct = sct_based, kept = upstream$percent.mt[cells])
+  if (is.null(expected)) fail("the upstream object has no SCT assay")
+  if (args[4] == "rna" && !is.null(sct_based)) {
+    # The check can tell RNA from SCT only if they differ.
+    gap <- max(abs(rna_based - sct_based))
+    if (gap < 1e-6) fail("RNA- and SCT-based percent.mt coincide, so the RNA assay's use cannot be checked")
+    cat(sprintf("upstream default assay: %s; RNA- and SCT-based percent.mt differ by up to %.3g\n",
+                DefaultAssay(upstream), gap))
   }
 }
 diff <- max(abs(pct[cells] - expected))

@@ -10,6 +10,11 @@
 # With every option empty or absent, a script computes percent.mt with MT_PATTERN and calls SCTransform with
 # vars.to.regress = NULL (its default), exactly as before these options existed.
 #
+# A percent.mt that SCTransform regresses out is computed on the RNA assay - the counts SCTransform models -
+# by every script, whatever its object's default assay: the doublet-removal scripts' inputs default to their SCT
+# assay, and the scripts that keep their input's percent.mt recompute it. Otherwise each script computes it as
+# before, on its object's default assay.
+#
 # A list is mapped to row names once, by the script that builds the object from the sample's features: a
 # listed ID selects the rows whose column-1 ID it is, and the row names are taken from the object itself, so
 # they are whatever Seurat named those rows (Read10X's make.unique of column 2, the "_" and "|" that
@@ -194,30 +199,43 @@ require_mt_features <- function(object, mt_features, opts, context, assay = Defa
 }
 
 # percent.mt with PercentageFeatureSet(): from the listed features (mt_features, row names) or, when there is
-# no list (NULL), from the features whose names match MT_PATTERN, as before. A list is stored in the object
-# for the steps that start from it.
+# no list (NULL), from the features whose names match MT_PATTERN. When percent.mt is regressed out it is
+# computed on the RNA assay, which needs a mitochondrial feature; otherwise on the object's default assay, as
+# before. A list is stored in the object for the steps that start from it.
 add_percent_mt <- function(object, mt_features, opts, context) {
+  regressed <- "percent.mt" %in% opts$vars_to_regress
+  assay <- if (regressed) "RNA" else DefaultAssay(object)
+  if (regressed) {
+    require_mt_features(object, mt_features, opts, context, assay = assay)
+  }
   if (is.null(mt_features)) {
-    object[["percent.mt"]] <- PercentageFeatureSet(object, pattern = MT_PATTERN)
+    if (regressed) {
+      message(sprintf("%s: percent.mt from the %d feature(s) matching \"%s\" (%s assay)", message_prefix(opts, context),
+                      length(mt_features_in_assay(object, NULL, assay)), MT_PATTERN, assay))
+    }
+    object[["percent.mt"]] <- PercentageFeatureSet(object, pattern = MT_PATTERN, assay = assay)
   } else {
-    assay <- DefaultAssay(object)
     used <- mt_features_in_assay(object, mt_features, assay)
     message(sprintf("%s: percent.mt from %d of the sample's %d mt_genes feature(s) (%s assay)",
                     message_prefix(opts, context), length(used), length(mt_features), assay))
-    object[["percent.mt"]] <- PercentageFeatureSet(object, features = used)
+    object[["percent.mt"]] <- PercentageFeatureSet(object, features = used, assay = assay)
     object@misc[[MT_FEATURES_MISC]] <- mt_features
-  }
-  if ("percent.mt" %in% opts$vars_to_regress) {
-    require_mt_features(object, mt_features, opts, context)
   }
   object
 }
 
+# For a script that keeps its input's percent.mt (posthocfilter_threshold, downsample_clusters): when percent.mt
+# is regressed out, recompute it on the RNA assay as add_percent_mt() does, from the mitochondrial features the
+# input recorded from the sample's mt_genes list, or those matching MT_PATTERN. Otherwise keep the input's.
+refresh_regressed_percent_mt <- function(object, opts, context, mt_features = stored_mt_features(object)) {
+  if (!"percent.mt" %in% opts$vars_to_regress) {
+    return(object)
+  }
+  add_percent_mt(object, mt_features, opts, context)
+}
+
 # Before SCTransform(vars.to.regress = opts$vars_to_regress): every variable must be a cell metadata column.
-# Scripts that regress an upstream percent.mt without computing it pass mt_check_assay to check its
-# mitochondrial features as add_percent_mt() does.
-check_regression_vars <- function(object, opts, context, mt_check_assay = NULL,
-                                  mt_features = stored_mt_features(object)) {
+check_regression_vars <- function(object, opts, context) {
   vars <- opts$vars_to_regress
   if (is.null(vars)) {
     return(invisible(NULL))
@@ -226,9 +244,6 @@ check_regression_vars <- function(object, opts, context, mt_check_assay = NULL,
   if (length(missing) > 0) {
     stop(sprintf("%s: cannot regress %s out: not in the cell metadata", message_prefix(opts, context),
                  paste(missing, collapse = ", ")), call. = FALSE)
-  }
-  if (!is.null(mt_check_assay) && "percent.mt" %in% vars) {
-    require_mt_features(object, mt_features, opts, context, assay = mt_check_assay)
   }
   message(sprintf("%s: SCTransform regresses out %s", message_prefix(opts, context), paste(vars, collapse = ", ")))
   invisible(vars)
