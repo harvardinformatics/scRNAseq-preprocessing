@@ -26,6 +26,20 @@ ALLOWED_DECON_METHODS = {"soupx", "cellbender_fromraw", "decontx_raw"}
 ALLOWED_DOUBLET_METHODS = {"doubletfinder", "scdblfinder"}
 ALLOWED_POSTHOC_METHODS = {"threshold", "mad"}
 ALLOWED_WORKFLOW_MODES = {"preprocess", "preprocess_and_downsample", "downsample_only"}
+ALLOWED_VARS_TO_REGRESS = {"percent.mt", "nCount_RNA", "nFeature_RNA"}
+# Every script that calls SCTransform, and so takes --vars-to-regress.
+SCTRANSFORM_SCRIPTS = [
+    "tenx2seuratrds.R",
+    "emptydrops.R",
+    "cellbender2seurat.R",
+    "soupx.R",
+    "decontx.R",
+    "doubletfinder.R",
+    "scdblfinder.R",
+    "posthocfilter_threshold.R",
+    "posthocfilter_mad.R",
+    "downsample_clusters.R",
+]
 
 
 def load_default_config(repo_root):
@@ -121,6 +135,9 @@ def test_default_config_has_required_keys_and_valid_values():
     if "preflight_min_cells" in config:
         assert isinstance(config["preflight_min_cells"], int) and config["preflight_min_cells"] > 0
 
+    # Regression is opt-in: the default config regresses nothing out.
+    assert config["vars_to_regress"] == []
+
 
 @pytest.mark.parametrize(
     "mutate, expected_message, override_results_dir",
@@ -132,6 +149,13 @@ def test_default_config_has_required_keys_and_valid_values():
         (lambda cfg: cfg.update({"workflow_seed": "12345"}), "workflow_seed must be an integer", True),
         (lambda cfg: cfg.update({"min_nfeature": 0}), "min_nfeature must be a positive integer", True),
         (lambda cfg: cfg.update({"max_mtdna": 5}), "max_mtdna is no longer supported", True),
+        (lambda cfg: cfg.update({"max_mtdna": 5}), "to regress it out in SCTransform, add percent.mt to vars_to_regress", True),
+        (lambda cfg: cfg.update({"vars_to_regress": "percent.mt"}), "vars_to_regress must be a list", True),
+        (lambda cfg: cfg.update({"vars_to_regress": None}), "vars_to_regress must be a list", True),
+        (lambda cfg: cfg.update({"vars_to_regress": ["percent.mito"]}), "vars_to_regress contains invalid value(s): percent.mito", True),
+        (lambda cfg: cfg.update({"vars_to_regress": ["percent.mt", "percent.mt"]}), "vars_to_regress contains duplicate value(s): percent.mt", True),
+        (lambda cfg: cfg.update({"vars_to_regress": ["nCount_RNA", 3]}), "vars_to_regress contains a non-string or empty value", True),
+        (lambda cfg: cfg.update({"workflow_mode": "downsample_only", "vars_to_regress": ["S.Score"]}), "vars_to_regress contains invalid value(s): S.Score", True),
         (lambda cfg: cfg.update({"resultsDir": ""}), "resultsDir must be a non-empty string", False),
         (lambda cfg: cfg.update({"workflow_mode": "bad_mode"}), "workflow_mode must be one of", True),
         (lambda cfg: cfg.update({"workflow_mode": "downsample_only", "downsampleRate": 1.5}), "downsampleRate must be > 0 and <= 1", True),
@@ -169,6 +193,52 @@ def run_variant_dry_run(tmp_path, **overrides):
     output = combined_output(result)
     assert result.returncode == 0, output
     return output, results_dir
+
+
+def script_commands(output, script):
+    """The dry-run shell command lines (-p) that run workflow/scripts/<script>."""
+    return [line for line in output.splitlines() if f"Rscript workflow/scripts/{script} " in line]
+
+
+def test_default_config_passes_no_regression_to_every_sctransform_script(tmp_path):
+    output, _ = run_variant_dry_run(tmp_path, posthoc_methods=["threshold", "mad"])
+
+    for script in SCTRANSFORM_SCRIPTS:
+        commands = script_commands(output, script)
+        assert commands, f"no dry-run command runs {script}"
+        for command in commands:
+            # An empty value: SCTransform gets vars.to.regress = NULL, its default.
+            assert "--vars-to-regress= " in command, command
+            # Without an mt_genes column every sample uses the "(?i)^mt-" pattern.
+            assert "--mt-genes= " in command or "--mt-genes" not in command, command
+
+
+def test_vars_to_regress_reaches_every_sctransform_script(tmp_path):
+    output, _ = run_variant_dry_run(
+        tmp_path, vars_to_regress=["nCount_RNA", "nFeature_RNA"], posthoc_methods=["threshold", "mad"]
+    )
+
+    for script in SCTRANSFORM_SCRIPTS:
+        commands = script_commands(output, script)
+        assert commands, f"no dry-run command runs {script}"
+        for command in commands:
+            assert "--vars-to-regress=nCount_RNA,nFeature_RNA " in command, command
+
+
+def test_percent_mt_regression_needs_a_mitochondrial_feature_in_every_sample(tmp_path):
+    # The test data's genes include none named "mt-...", and the test sample has no mt_genes list.
+    repo_root = Path(__file__).resolve().parents[1]
+    config = baseline_test_config(repo_root)
+    config["vars_to_regress"] = ["percent.mt"]
+    config_file = write_config(tmp_path / "regress_mt.yaml", config)
+
+    result = run_snakemake(repo_root, config_file, results_dir_path(tmp_path), "-np")
+    output = combined_output(result)
+
+    assert result.returncode != 0
+    assert "[mt_genes] mitochondrial-gene problem(s)" in output
+    assert "test: percent.mt is in vars_to_regress, but no feature name in" in output
+    assert "sample sheet's mt_genes column" in output
 
 
 def test_posthoc_method_variant_changes_rule_all_targets(tmp_path):

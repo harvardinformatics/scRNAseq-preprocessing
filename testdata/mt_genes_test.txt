@@ -1,0 +1,12 @@
+# mt_genes list for the test data (sample-sheet column mt_genes; see README). Its 2000 genes include no
+# mtDNA-encoded gene, so five nuclear-encoded respiratory-chain genes stand in for them, by their gene IDs
+# (column 1 of testdata/*/features.tsv.gz): Atp5a1, Atp5mpl, Ndufa6, Ndufb7, Ndufv3.
+ENSMUSG00000025428
+ENSMUSG00000021290
+ENSMUSG00000022450
+ENSMUSG00000033938
+ENSMUSG00000024038
+
+# mt-Nd1 and mt-Co1 are not among the test data's features: reported and skipped.
+ENSMUSG00000064341
+ENSMUSG00000064351
