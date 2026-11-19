@@ -1,4 +1,6 @@
-args <- commandArgs(trailingOnly = TRUE)
+source("workflow/scripts/regression_utils.R")
+opts <- parse_script_args(commandArgs(trailingOnly = TRUE))
+args <- opts$positional
 seurat <- args[1]
 output <- args[2]
 nclusters_output <- args[3]
@@ -90,10 +92,14 @@ gc()
 seurat_singlets <- subset(seurat, subset = scDblFinder.class == "singlet")
 rm(seurat)
 gc()
-# percent.mt is kept as metadata only: "(?i)^mt-" finds mitochondrial genes in few species,
-# so it is neither filtered on nor regressed out (every species is processed the same way).
-seurat_singlets[["percent.mt"]] <- PercentageFeatureSet(seurat_singlets, pattern = "(?i)^mt-")
-seurat_singlets <- SCTransform(seurat_singlets, seed.use = WORKFLOW_SEED, verbose = FALSE)
+# percent.mt is stored as metadata and never filtered on. It is computed on the RNA counts, although this
+# object's default assay is the input's SCT assay, from the mitochondrial features the upstream step mapped from
+# the sample's mt_genes list (kept in the object) or, by default, the features matching "(?i)^mt-", which finds
+# mitochondrial genes in few species. SCTransform regresses out only --vars-to-regress (none by default). See
+# regression_utils.R.
+seurat_singlets <- add_percent_mt(seurat_singlets, stored_mt_features(seurat_singlets), opts, context = "scdblfinder")
+check_regression_vars(seurat_singlets, opts, context = "scdblfinder")
+seurat_singlets <- SCTransform(seurat_singlets, vars.to.regress = opts$vars_to_regress, seed.use = WORKFLOW_SEED, verbose = FALSE)
 require_min_cells_for_pca(seurat_singlets, context = "scdblfinder")
 seurat_singlets <- RunPCA(seurat_singlets, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_singlets <- RunUMAP(seurat_singlets, dims = 1:30, seed.use = WORKFLOW_SEED)

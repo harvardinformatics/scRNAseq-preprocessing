@@ -1,4 +1,6 @@
-args <- commandArgs(trailingOnly = TRUE)
+source("workflow/scripts/regression_utils.R")
+opts <- parse_script_args(commandArgs(trailingOnly = TRUE))
+args <- opts$positional
 filtered <- args[1]
 output <- args[2]
 nclusters_output <- args[3]
@@ -24,10 +26,16 @@ write_cluster_metadata <- function(seurat_obj, nclusters_output, cluster_ids_out
 
 filtered_loaded <- Seurat::Read10X(filtered)
 seurat_obj <- CreateSeuratObject(counts = filtered_loaded)
-# percent.mt is kept as metadata only: "(?i)^mt-" finds mitochondrial genes in few species,
-# so it is neither filtered on nor regressed out (every species is processed the same way).
-seurat_obj[["percent.mt"]] <- PercentageFeatureSet(seurat_obj, pattern = "(?i)^mt-")
-seurat_obj <- SCTransform(seurat_obj, seed.use = WORKFLOW_SEED, verbose = FALSE)
+# percent.mt is stored as metadata and never filtered on. It counts the sample's mt_genes list (mapped through
+# this matrix's features) or, by default, the features matching "(?i)^mt-", which finds mitochondrial genes in
+# few species; SCTransform regresses out only --vars-to-regress (none by default). See regression_utils.R.
+mt_features <- NULL
+if (!is.null(opts$mt_genes)) {
+  mt_features <- map_mt_genes(opts, read_feature_ids(filtered), seurat_obj, context = "tenx2seuratrds")
+}
+seurat_obj <- add_percent_mt(seurat_obj, mt_features, opts, context = "tenx2seuratrds")
+check_regression_vars(seurat_obj, opts, context = "tenx2seuratrds")
+seurat_obj <- SCTransform(seurat_obj, vars.to.regress = opts$vars_to_regress, seed.use = WORKFLOW_SEED, verbose = FALSE)
 require_min_cells_for_pca(seurat_obj, context = "tenx2seuratrds")
 seurat_obj <- RunPCA(seurat_obj, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_obj <- RunUMAP(seurat_obj, dims = 1:30, seed.use = WORKFLOW_SEED)

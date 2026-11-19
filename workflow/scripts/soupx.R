@@ -1,4 +1,6 @@
-args <- commandArgs(trailingOnly = TRUE)
+source("workflow/scripts/regression_utils.R")
+opts <- parse_script_args(commandArgs(trailingOnly = TRUE))
+args <- opts$positional
 filtered <- args[1]
 raw <- args[2]
 seurat_base <- args[3]
@@ -61,10 +63,18 @@ corrected_counts <- adjustCounts(soup_channel,roundToInt=TRUE)
 seurat_soupx <- CreateSeuratObject(counts = corrected_counts)
 rm(filtered_matrix, raw_matrix, soup_channel, corrected_counts)
 gc()
-# percent.mt is kept as metadata only: "(?i)^mt-" finds mitochondrial genes in few species,
-# so it is neither filtered on nor regressed out (every species is processed the same way).
-seurat_soupx[["percent.mt"]] <- PercentageFeatureSet(seurat_soupx, pattern = "(?i)^mt-")
-seurat_soupx <- SCTransform(seurat_soupx, seed.use = WORKFLOW_SEED, verbose = FALSE)
+# percent.mt is stored as metadata and never filtered on. It counts the sample's mt_genes list or, by default,
+# the features matching "(?i)^mt-", which finds mitochondrial genes in few species; SCTransform regresses out
+# only --vars-to-regress (none by default). See regression_utils.R. The list is mapped through the raw matrix's
+# features, which name these rows: SoupChannel() requires the raw and filtered matrices to list the same
+# features in the same order, and the emptyDrops filtered matrix has no gene IDs of its own.
+mt_features <- NULL
+if (!is.null(opts$mt_genes)) {
+  mt_features <- map_mt_genes(opts, read_feature_ids(raw), seurat_soupx, context = "soupx")
+}
+seurat_soupx <- add_percent_mt(seurat_soupx, mt_features, opts, context = "soupx")
+check_regression_vars(seurat_soupx, opts, context = "soupx")
+seurat_soupx <- SCTransform(seurat_soupx, vars.to.regress = opts$vars_to_regress, seed.use = WORKFLOW_SEED, verbose = FALSE)
 require_min_cells_for_pca(seurat_soupx, context = "soupx")
 seurat_soupx <- RunPCA(seurat_soupx, seed.use = WORKFLOW_SEED, verbose = FALSE)
 seurat_soupx <- RunUMAP(seurat_soupx, dims = 1:30, seed.use = WORKFLOW_SEED)

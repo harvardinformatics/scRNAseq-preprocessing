@@ -2,7 +2,8 @@ rule posthocfilter_threshold:
     input:
         data=f"{RESULTS_DIR}/{{doublet_method}}/seurat_{{doublet_method}}_{{decon_method}}_{{empty_method}}_{{sample}}.rds",
         script="workflow/scripts/posthocfilter_threshold.R",
-        helper="workflow/scripts/silhouette_utils.R"
+        helper="workflow/scripts/silhouette_utils.R",
+        regression_helper="workflow/scripts/regression_utils.R"
     output:
         rds=f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_threshold_{{doublet_method}}_{{decon_method}}_{{empty_method}}_{{sample}}.rds",
         nclusters=temp(f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_threshold_{{doublet_method}}_{{decon_method}}_{{empty_method}}_{{sample}}_nclusters.txt"),
@@ -21,10 +22,11 @@ rule posthocfilter_threshold:
     params:
         min_numfeatures = config["min_nfeature"],
         min_umicount = config["min_ncount"],
-        seed=WORKFLOW_SEED
+        seed=WORKFLOW_SEED,
+        vars_to_regress=VARS_TO_REGRESS_ARG
     shell:
         """
-        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script}  {input.data} {output.rds}         {params.min_numfeatures} {params.min_umicount} {output.nclusters} {output.cluster_ids} > {log} 2>&1
+        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script}  {input.data} {output.rds}         {params.min_numfeatures} {params.min_umicount} {output.nclusters} {output.cluster_ids} --vars-to-regress={params.vars_to_regress} --sample={wildcards.sample} > {log} 2>&1
         """
 
 
@@ -32,7 +34,8 @@ rule posthocfilter_threshold_cellbender:
     input:
         data=f"{RESULTS_DIR}/{{doublet_method}}/seurat_{{doublet_method}}_cellbender_fromraw_{{sample}}.rds",
         script="workflow/scripts/posthocfilter_threshold.R",
-        helper="workflow/scripts/silhouette_utils.R"
+        helper="workflow/scripts/silhouette_utils.R",
+        regression_helper="workflow/scripts/regression_utils.R"
     output:
         rds=f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_threshold_{{doublet_method}}_cellbender_fromraw_{{sample}}.rds",
         nclusters=temp(f"{RESULTS_DIR}/posthocfilter/seurat_posthocfilt_threshold_{{doublet_method}}_cellbender_fromraw_{{sample}}_nclusters.txt"),
@@ -49,8 +52,9 @@ rule posthocfilter_threshold_cellbender:
     params:
         min_numfeatures = config["min_nfeature"],
         min_umicount = config["min_ncount"],
-        seed=WORKFLOW_SEED
+        seed=WORKFLOW_SEED,
+        vars_to_regress=VARS_TO_REGRESS_ARG
     shell:
         """
-        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script}  {input.data} {output.rds}         {params.min_numfeatures} {params.min_umicount} {output.nclusters} {output.cluster_ids} > {log} 2>&1
+        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script}  {input.data} {output.rds}         {params.min_numfeatures} {params.min_umicount} {output.nclusters} {output.cluster_ids} --vars-to-regress={params.vars_to_regress} --sample={wildcards.sample} > {log} 2>&1
         """

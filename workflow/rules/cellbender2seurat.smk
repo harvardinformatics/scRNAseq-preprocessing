@@ -1,8 +1,10 @@
 rule cellbender2seurat:
     input:
         data=f"{RESULTS_DIR}/cellbender/cellbender_{{sample}}_filtered.h5",
+        mt_genes=sample_mt_genes_input,
         script="workflow/scripts/cellbender2seurat.R",
-        helper="workflow/scripts/silhouette_utils.R"
+        helper="workflow/scripts/silhouette_utils.R",
+        regression_helper="workflow/scripts/regression_utils.R"
     output:
         rds=f"{RESULTS_DIR}/cellbender_fromraw/seurat_cellbender_fromraw_{{sample}}.rds",
         nclusters=temp(f"{RESULTS_DIR}/cellbender_fromraw/seurat_cellbender_fromraw_{{sample}}_nclusters.txt"),
@@ -15,8 +17,10 @@ rule cellbender2seurat:
         mem_mb = lambda wildcards, attempt: int(48000 * (2 ** (attempt - 1))),
         runtime = lambda wildcards, attempt: int(480* (2 ** (attempt - 1)))
     params:
-        seed=WORKFLOW_SEED
+        seed=WORKFLOW_SEED,
+        vars_to_regress=VARS_TO_REGRESS_ARG,
+        mt_genes=sample_mt_genes
     shell:
         """
-        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script} {input.data} {output.rds} {output.nclusters} {output.cluster_ids} > {log} 2>&1
+        SCRNASEQ_PREPROCESS_SEED={params.seed} Rscript {input.script} {input.data} {output.rds} {output.nclusters} {output.cluster_ids} --vars-to-regress={params.vars_to_regress} --mt-genes={params.mt_genes:q} --sample={wildcards.sample} > {log} 2>&1
         """

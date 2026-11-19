@@ -44,8 +44,17 @@ cellbender_adaptive_rerun: true       # set false to always keep the single init
 cellbender_cell_calls: true
 min_nfeature: 200
 min_ncount: 500
-# No % mitochondrial filter or SCTransform regression (removed 2026-10-30): mitochondrial genes
-# are recognisable by name in few species, so mt-based QC would treat samples unequally.
+# No % mitochondrial filter (max_mtdna was removed 2026-10-30): mitochondrial genes are recognisable by
+# name in few species, so an mt cap would treat samples unequally. percent.mt is always kept as cell
+# metadata, the percentage of a cell's RNA counts from mitochondrial genes: by default the genes whose
+# names match "(?i)^mt-"; a sample-sheet column mt_genes can instead give, per sample, a file of its
+# mitochondrial gene IDs (README, "Mitochondrial genes and regression").
+#
+# vars_to_regress: cell metadata columns that every SCTransform call regresses out of its residuals
+# (Seurat's vars.to.regress), in preprocessing and in each downsampling replicate. Any of "percent.mt",
+# "nCount_RNA", "nFeature_RNA". The default [] regresses nothing. With "percent.mt", a sample with no
+# mitochondrial feature (by the "(?i)^mt-" pattern, or in its mt_genes list) stops the run.
+vars_to_regress: []
 
 downsampleSeuratObjectDir: "seurat_objects"
 downsampleResultsDir: "results/downsampling"

@@ -1,5 +1,6 @@
 import gzip
 import os
+import re
 from pathlib import Path
 
 
@@ -30,6 +31,12 @@ DEFAULT_CELLBENDER_LEARNING_RATE = 0.0001
 DEFAULT_CELLBENDER_ADAPTIVE_RERUN = True
 # The cellbendercells object (CellBender's cell calls on raw counts) is opt-in.
 DEFAULT_CELLBENDER_CELL_CALLS = False
+# Cell metadata columns every SCTransform call may regress out (its vars.to.regress); none by default.
+ALLOWED_VARS_TO_REGRESS = {"percent.mt", "nCount_RNA", "nFeature_RNA"}
+DEFAULT_VARS_TO_REGRESS = []
+# Without a sample-sheet mt_genes list, percent.mt counts the features whose Seurat row names match the R
+# pattern "(?i)^mt-" (workflow/scripts/regression_utils.R); this is the same test in Python.
+MT_NAME_PATTERN = re.compile(r"mt-", re.IGNORECASE)
 
 
 def require_non_empty_string(config_values, key, errors):
@@ -89,6 +96,39 @@ def validate_method_list(config_values, key, allowed_values, errors):
         )
 
     return normalized
+
+
+def validate_vars_to_regress(config_values, errors):
+    """The optional vars_to_regress list (default []): metadata columns SCTransform regresses out."""
+    if "vars_to_regress" not in config_values:
+        return list(DEFAULT_VARS_TO_REGRESS)
+    allowed = ", ".join(sorted(ALLOWED_VARS_TO_REGRESS))
+    value = config_values["vars_to_regress"]
+    if not isinstance(value, list):
+        errors.append(f"vars_to_regress must be a list (default []) of any of: {allowed}")
+        return []
+    normalized = []
+    for item in value:
+        if not isinstance(item, str) or not item.strip():
+            errors.append("vars_to_regress contains a non-string or empty value")
+            continue
+        normalized.append(item)
+    duplicates = sorted({item for item in normalized if normalized.count(item) > 1})
+    if duplicates:
+        errors.append("vars_to_regress contains duplicate value(s): " + ", ".join(duplicates))
+    invalid = sorted(set(normalized) - ALLOWED_VARS_TO_REGRESS)
+    if invalid:
+        errors.append(f"vars_to_regress contains invalid value(s): {', '.join(invalid)}; allowed values are: {allowed}")
+    return normalized
+
+
+def validated_vars_to_regress(config_values):
+    """validate_vars_to_regress() for entry points that do not run validate_workflow_config()."""
+    errors = []
+    value = validate_vars_to_regress(config_values, errors)
+    if errors:
+        raise ValueError("Invalid workflow config: " + "; ".join(errors))
+    return value
 
 
 def validate_downsample_targets(config_values, errors):
@@ -171,8 +211,10 @@ def validate_workflow_config(config_values):
         require_positive_int(config_values, "min_nfeature", errors)
         require_positive_int(config_values, "min_ncount", errors)
         if "max_mtdna" in config_values:
-            errors.append("max_mtdna is no longer supported: the pipeline does not filter on or regress out "
-                          "% mitochondrial reads (mitochondrial genes are recognisable by name in few species)")
+            errors.append("max_mtdna is no longer supported: the pipeline does not filter cells on % mitochondrial "
+                          "reads (mitochondrial genes are recognisable by name in few species). percent.mt is "
+                          "kept as cell metadata; to regress it out in SCTransform, add percent.mt to "
+                          "vars_to_regress")
 
         require_optional_positive_int(config_values, "preflight_min_cells", errors)
         if config_values.get("preflight_mode", DEFAULT_PREFLIGHT_MODE) not in ALLOWED_PREFLIGHT_MODES:
@@ -207,6 +249,8 @@ def validate_workflow_config(config_values):
         require_non_empty_string(config_values, "resultsDir", errors)
 
     excluded_samples = validate_excluded_samples(config_values, errors)
+    # SCTransform runs in preprocessing and in every downsampling replicate, so this applies in every mode.
+    vars_to_regress = validate_vars_to_regress(config_values, errors)
 
     if errors:
         raise ValueError("Invalid workflow config: " + "; ".join(errors))
@@ -218,6 +262,7 @@ def validate_workflow_config(config_values):
         "doublet_methods": doublet_methods,
         "posthoc_methods": posthoc_methods,
         "excluded_samples": excluded_samples,
+        "vars_to_regress": vars_to_regress,
         "preflight_min_cells": config_values.get("preflight_min_cells", DEFAULT_PREFLIGHT_MIN_CELLS),
         "preflight_mode": config_values.get("preflight_mode", DEFAULT_PREFLIGHT_MODE),
         "cellbender_learning_rate": config_values.get(
@@ -233,6 +278,8 @@ def validate_workflow_config(config_values):
 
 
 REQUIRED_SAMPLE_COLUMNS = {"sampleid", "tenx_datadir"}
+# Optional: a file of the sample's mitochondrial gene IDs; blank (or no column) means the "(?i)^mt-" pattern.
+MT_GENES_COLUMN = "mt_genes"
 REQUIRED_TENX_PATHS = (
     "filtered_feature_bc_matrix",
     "raw_feature_bc_matrix",
@@ -240,11 +287,112 @@ REQUIRED_TENX_PATHS = (
 )
 
 
-def resolve_tenx_datadir(path_value):
+def resolve_sample_sheet_path(path_value):
+    """A sample-sheet path: absolute, or relative to the working directory (~ expanded)."""
     path = Path(str(path_value)).expanduser()
     if not path.is_absolute():
         path = Path.cwd() / path
     return path
+
+
+def resolve_tenx_datadir(path_value):
+    return resolve_sample_sheet_path(path_value)
+
+
+def read_mt_gene_ids(path):
+    """The gene IDs in an mt_genes file, in file order without duplicates: one per line, surrounding spaces,
+    tabs and carriage returns trimmed, blank lines and lines starting with # skipped (as regression_utils.R)."""
+    ids = {}
+    with open(path) as handle:
+        for line in handle:
+            line = line.strip(" \t\r\n")
+            if line and not line.startswith("#"):
+                ids.setdefault(line, None)
+    return list(ids)
+
+
+def first_few(items, n=5):
+    shown = ", ".join(items[:n])
+    return f"{shown}, ... ({len(items) - n} more)" if len(items) > n else shown
+
+
+def tenx_features_file(matrix_dir):
+    """The features file Seurat's Read10X reads: genes.tsv (Cell Ranger < 3) if present, else features.tsv.gz."""
+    genes = Path(matrix_dir) / "genes.tsv"
+    return genes if genes.exists() else Path(matrix_dir) / "features.tsv.gz"
+
+
+def read_tenx_features(matrix_dir):
+    """(path, ids, names): columns 1 and 2 of a 10x matrix directory's features file, one per feature."""
+    path = tenx_features_file(matrix_dir)
+    opener = gzip.open if path.name.endswith(".gz") else open
+    ids = []
+    names = []
+    with opener(path, "rt") as handle:
+        for line in handle:
+            line = line.rstrip("\r\n")
+            if not line:
+                continue
+            fields = line.split("\t")
+            ids.append(fields[0].strip(" \t\r\n"))
+            names.append(fields[1] if len(fields) > 1 else "")
+    return path, ids, names
+
+
+def seurat_row_name_start(feature_id, name):
+    """How the Seurat row name of a feature starts: Read10X takes column 2 (column 1 where it is empty or NA)
+    and make.unique only appends suffixes; CreateSeuratObject turns "_" and "|" into "-"."""
+    if name in ("", "NA"):
+        name = feature_id
+    return name.replace("_", "-").replace("|", "-")
+
+
+def mt_gene_checks(sampleinfo, vars_to_regress):
+    """Parse-time mitochondrial-gene checks, reading only each sample's filtered features file. Returns
+    (errors, warnings):
+      errors   -- an mt_genes list none of whose IDs is in column 1 of the features; or, with percent.mt in
+                  vars_to_regress, a sample without a list whose feature names have none matching "(?i)^mt-".
+      warnings -- listed IDs that are not features (they are skipped).
+    The R scripts check the same at run time, on the objects they build."""
+    errors = []
+    warnings = []
+    regress_mt = "percent.mt" in vars_to_regress
+    for sample_id, data_dir, mt_genes in zip(
+        sampleinfo["sampleid"], sampleinfo["tenx_datadir"], sampleinfo[MT_GENES_COLUMN]
+    ):
+        if not mt_genes and not regress_mt:
+            continue
+        matrix_dir = Path(data_dir) / "filtered_feature_bc_matrix"
+        try:
+            features_path, feature_ids, names = read_tenx_features(matrix_dir)
+        except (OSError, UnicodeDecodeError) as exc:
+            errors.append(f"{sample_id}: cannot read the features of {matrix_dir}: {exc}")
+            continue
+        if mt_genes:
+            ids = read_mt_gene_ids(mt_genes)
+            known = set(feature_ids)
+            missing = [gene_id for gene_id in ids if gene_id not in known]
+            if len(missing) == len(ids):
+                errors.append(
+                    f"{sample_id}: none of the {len(ids)} gene IDs in its mt_genes file {mt_genes} is in "
+                    f"column 1 of {features_path} (e.g. {first_few(missing)})"
+                )
+            elif missing:
+                warnings.append(
+                    f"{sample_id}: {len(missing)} of {len(ids)} gene IDs in its mt_genes file {mt_genes} are "
+                    f"not in column 1 of {features_path} and are skipped: {first_few(missing)}"
+                )
+        elif not any(
+            MT_NAME_PATTERN.match(seurat_row_name_start(feature_id, name))
+            for feature_id, name in zip(feature_ids, names)
+        ):
+            errors.append(
+                f"{sample_id}: percent.mt is in vars_to_regress, but no feature name in {features_path} "
+                "matches \"(?i)^mt-\", so percent.mt would be 0 in every cell. List the sample's mitochondrial "
+                "gene IDs in a file and give its path in the sample sheet's mt_genes column, or remove "
+                "percent.mt from vars_to_regress"
+            )
+    return errors, warnings
 
 
 def validate_sample_sheet(sampleinfo, sample_table):
@@ -286,12 +434,40 @@ def validate_sample_sheet(sampleinfo, sample_table):
             if not candidate.exists():
                 errors.append(f"sample {sample_id} row {row_number}: missing {required_path}: {candidate}")
 
+    # Optional mt_genes column: blank means the "(?i)^mt-" pattern; a path (resolved like tenx_datadir) must
+    # be a file listing at least one gene ID.
+    if MT_GENES_COLUMN in sampleinfo.columns:
+        mt_values = sampleinfo[MT_GENES_COLUMN].astype("string")
+    else:
+        mt_values = pd.Series([pd.NA] * len(sampleinfo), dtype="string")
+    resolved_mt_genes = []
+    for row_number, (sample_id, mt_value) in enumerate(zip(sample_ids, mt_values), start=2):
+        if pd.isna(mt_value) or not mt_value.strip():
+            resolved_mt_genes.append("")
+            continue
+        mt_path = resolve_sample_sheet_path(mt_value.strip())
+        resolved_mt_genes.append(str(mt_path))
+        if not mt_path.is_file():
+            errors.append(f"sample {sample_id} row {row_number}: mt_genes file does not exist: {mt_path}")
+            continue
+        try:
+            mt_ids = read_mt_gene_ids(mt_path)
+        except (OSError, UnicodeDecodeError) as exc:
+            errors.append(f"sample {sample_id} row {row_number}: mt_genes file is not readable text: {mt_path} ({exc})")
+            continue
+        if not mt_ids:
+            errors.append(
+                f"sample {sample_id} row {row_number}: mt_genes file lists no gene IDs "
+                f"(blank lines and lines starting with # are ignored): {mt_path}"
+            )
+
     if errors:
         raise ValueError(f"Invalid sample sheet {sample_table}: " + "; ".join(errors))
 
     validated = sampleinfo.copy()
     validated["sampleid"] = sample_ids.astype(str)
     validated["tenx_datadir"] = resolved_data_dirs
+    validated[MT_GENES_COLUMN] = resolved_mt_genes
     return validated
 
 
@@ -403,6 +579,17 @@ def tenx_raw_matrix_input(wildcards):
 
 def tenx_raw_h5_input(wildcards):
     return os.path.join(sample_tenx_dir(wildcards), "raw_feature_bc_matrix.h5")
+
+
+def sample_mt_genes(wildcards):
+    """The sample's mt_genes file (absolute path), or "" for the "(?i)^mt-" pattern: the scripts' --mt-genes."""
+    return str(sampleinfo.loc[sampleinfo["sampleid"] == wildcards.sample, MT_GENES_COLUMN].values[0])
+
+
+def sample_mt_genes_input(wildcards):
+    """The sample's mt_genes file as a rule input, so that editing the list reruns the steps that read it."""
+    mt_genes = sample_mt_genes(wildcards)
+    return [mt_genes] if mt_genes else []
 
 
 def decontx_cells_matrix_input(wildcards):

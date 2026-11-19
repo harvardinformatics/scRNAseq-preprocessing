@@ -1,6 +1,9 @@
-args <- commandArgs(trailingOnly = TRUE)
+source("workflow/scripts/regression_utils.R")
+opts <- parse_script_args(commandArgs(trailingOnly = TRUE))
+args <- opts$positional
 if (length(args) < 3) {
-  stop("Usage: downsample_clusters.R <seurat_rds> <output_tsv> <n_replicates> [downsample_rate]", call. = FALSE)
+  stop("Usage: downsample_clusters.R <seurat_rds> <output_tsv> <n_replicates> [downsample_rate] ",
+       "[--vars-to-regress=A,B] [--sample=NAME]", call. = FALSE)
 }
 
 seurat_rds <- args[1]
@@ -44,7 +47,7 @@ RandomSubsetData <- function(object, rate, random.subset.seed = NULL, ...) {
   return(object)
 }
 
-SubSampleReSCTSeuratObject <- function(seurat_obj, subrate, replicate_seed) {
+SubSampleReSCTSeuratObject <- function(seurat_obj, subrate, replicate_seed, vars_to_regress) {
   set.seed(replicate_seed)
   subsampled_seurat <- RandomSubsetData(
     seurat_obj,
@@ -57,7 +60,7 @@ SubSampleReSCTSeuratObject <- function(seurat_obj, subrate, replicate_seed) {
     drop = TRUE
   ]
 
-  subsampled_seurat <- SCTransform(subsampled_seurat, verbose = FALSE)
+  subsampled_seurat <- SCTransform(subsampled_seurat, vars.to.regress = vars_to_regress, verbose = FALSE)
   subsampled_seurat <- RunPCA(subsampled_seurat, verbose = FALSE)
   pca_dims <- seq_len(min(30, ncol(Embeddings(subsampled_seurat, "pca"))))
   subsampled_seurat <- FindNeighbors(subsampled_seurat, dims = pca_dims, verbose = FALSE)
@@ -119,18 +122,28 @@ if (!"seurat_clusters" %in% colnames(seurat_obj@meta.data)) {
 # yet are never used here. Strip to a minimal counts-only object (measured ~36 -> ~30 GB
 # peak per replicate on a 77k-cell dataset; the gap grows with cell count). Results are
 # unchanged: SCTransform operates on the RNA counts, which are preserved exactly.
+# Each replicate's SCTransform regresses out --vars-to-regress (none by default; see regression_utils.R).
+# nCount_RNA and nFeature_RNA are recomputed below. percent.mt is the input's, which no step here uses unless it
+# is regressed out; then it is recomputed on these RNA counts, as add_percent_mt() computes it in every step,
+# from the mitochondrial features the input recorded from the sample's mt_genes list or those matching
+# "(?i)^mt-" (a cell's value does not change when cells are subsampled).
+mt_features <- stored_mt_features(seurat_obj)
 keep_meta <- intersect(c("seurat_clusters", "percent.mt"), colnames(seurat_obj@meta.data))
 seurat_obj <- CreateSeuratObject(
   counts = GetAssayData(seurat_obj, assay = "RNA", layer = "counts"),
   meta.data = seurat_obj@meta.data[, keep_meta, drop = FALSE]
 )
 gc(verbose = FALSE)
+if ("percent.mt" %in% opts$vars_to_regress) {
+  seurat_obj <- add_percent_mt(seurat_obj, mt_features, opts, context = "downsample_clusters")
+}
+check_regression_vars(seurat_obj, opts, context = "downsample_clusters")
 
 replicate_results <- vector("list", n_replicates)
 for (replicate in seq_len(n_replicates)) {
   t0 <- Sys.time()
   replicate_seed <- workflow_seed + replicate
-  subsampled_obj <- SubSampleReSCTSeuratObject(seurat_obj, downsample_rate, replicate_seed)
+  subsampled_obj <- SubSampleReSCTSeuratObject(seurat_obj, downsample_rate, replicate_seed, opts$vars_to_regress)
   replicate_results[[replicate]] <- GetJaccardMaxByCluster(subsampled_obj, replicate)
   rm(subsampled_obj)
   gc(verbose = FALSE)
