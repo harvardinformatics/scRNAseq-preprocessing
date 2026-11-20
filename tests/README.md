@@ -60,6 +60,8 @@ For testing, omit `--snakemake-conda-prefix` so Snakemake uses its default `.sna
 
 The GitHub-hosted full workflow action uses `tests/bin/cellbender` as a test shim for the CellBender rule because hosted runners do not provide the GPU-enabled CellBender container runtime used on the cluster. The shim copies the reference CellBender H5 outputs into the expected rule outputs, while the rest of the workflow runs normally and is still compared against the reference snapshot. Cluster/HPC runs of `pytest tests --run-workflow` do not use this shim unless `tests/bin` is explicitly added to `PATH`.
 
+The action runs in a `rockylinux:8.10` container, the cluster's OS, with `LANG=en_US.UTF-8`, so that R computes with the cluster's C math library (glibc 2.28), as when the reference outputs were made. Outside it, on the runner's own Ubuntu, `SCTransform` estimates the dispersion of a few nearly Poisson genes slightly differently. Under Ubuntu 26.04, which `ubuntu-latest` became in November 2026, that changed a few rounded SCT counts in two of the reference objects and moved two cells to another cluster. The action caches its Snakemake environments under their own key, because Snakemake hashes each environment's path into its directory name, and the container's checkout path differs from the runner's.
+
 When that action fails, it uploads `testdata/results`, Snakemake's logs and the package list of each rule environment as the `full-workflow-outputs` artifact, kept for 14 days. On GitHub Actions, failing tests also print their report as an error annotation, which the run's summary page shows.
 
 
