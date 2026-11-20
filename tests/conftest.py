@@ -1,3 +1,28 @@
+import os
+
+import pytest
+
+
+@pytest.fixture
+def github_error():
+    """Return a function that prints a failure as an error annotation when the tests run on GitHub Actions.
+
+    The run's summary page shows annotations, and the API serves them without signing in, so a failure can
+    be read there without opening the job log. pytest prints a failing test's output, annotation included.
+    """
+
+    def annotate(title, message, limit=6000):
+        if os.environ.get("GITHUB_ACTIONS") != "true":
+            return
+        if len(message) > limit:
+            message = message[:limit] + "\n... (cut short; the job log has the rest)"
+        title = title.replace("%", "%25").replace(",", "%2C").replace(":", "%3A")
+        message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+        print(f"::error title={title}::{message}")
+
+    return annotate
+
+
 def pytest_addoption(parser):
     parser.addoption(
         "--run-workflow",

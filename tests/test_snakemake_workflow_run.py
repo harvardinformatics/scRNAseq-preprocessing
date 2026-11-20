@@ -73,17 +73,20 @@ def find_rscript_with_seurat(repo_root):
     raise AssertionError("could not find an Rscript with the Seurat package installed")
 
 
-def assert_seurat_metadata_matches(repo_root, paths):
+def seurat_metadata_differences(repo_root, paths):
+    """The comparator's report on every Seurat object whose metadata differs from its reference."""
     if not paths:
-        return
+        return []
 
     rscript = find_rscript_with_seurat(repo_root)
     cmd = [str(rscript), str(SEURAT_METADATA_COMPARATOR)]
     for rel_path in paths:
-        cmd.extend([str(repo_root / rel_path), str(REFERENCE_ROOT / rel_path)])
+        cmd.extend([rel_path, str(REFERENCE_ROOT / rel_path)])
 
-    result = subprocess.run(cmd, text=True, capture_output=True, check=False)
-    assert result.returncode == 0, result.stdout + result.stderr
+    result = subprocess.run(cmd, cwd=repo_root, text=True, capture_output=True, check=False)
+    if result.returncode == 0:
+        return []
+    return [(result.stdout + result.stderr).strip()]
 
 
 def read_csv_table(path):
@@ -105,69 +108,81 @@ def numeric_value(value):
     return parsed
 
 
-def assert_marker_value_matches(path, column, current, reference):
+def marker_value_matches(current, reference):
     current_numeric = numeric_value(current)
     reference_numeric = numeric_value(reference)
     if current_numeric is not None and reference_numeric is not None:
-        assert math.isclose(
+        return math.isclose(
             current_numeric,
             reference_numeric,
             rel_tol=MARKER_REL_TOLERANCE,
             abs_tol=MARKER_ABS_TOLERANCE,
-        ), (
-            f"{path}: marker value differs for column {column}: "
-            f"{current} != {reference}"
         )
-        return
-
-    assert current == reference, (
-        f"{path}: marker value differs for column {column}: {current!r} != {reference!r}"
-    )
+    return current == reference
 
 
-def marker_rows_by_cluster_gene(path, rows):
-    keys = []
+def marker_rows_by_cluster_gene(rows):
     indexed = {}
+    duplicates = set()
     for row in rows:
         key = (row.get("cluster"), row.get("genesymbol"))
-        keys.append(key)
+        if key in indexed:
+            duplicates.add(key)
         indexed[key] = row
-
-    assert len(indexed) == len(rows), f"{path}: duplicate cluster/genesymbol rows found"
-    return keys, indexed
+    return indexed, duplicates
 
 
-def assert_marker_tables_match(repo_root, paths):
-    for rel_path in paths:
-        current_path = repo_root / rel_path
-        reference_path = REFERENCE_ROOT / rel_path
-        current_columns, current_rows = read_csv_table(current_path)
-        reference_columns, reference_rows = read_csv_table(reference_path)
+def marker_table_differences(repo_root, rel_path):
+    """Every way one marker table differs from its reference: columns, (cluster, gene) rows and values."""
+    current_columns, current_rows = read_csv_table(repo_root / rel_path)
+    reference_columns, reference_rows = read_csv_table(REFERENCE_ROOT / rel_path)
 
-        assert current_columns == reference_columns, (
+    if current_columns != reference_columns:
+        return [
             f"{rel_path}: marker columns differ\n"
             f"current: {current_columns}\nreference: {reference_columns}"
+        ]
+    missing_columns = [column for column in ("cluster", "genesymbol") if column not in current_columns]
+    if missing_columns:
+        return [f"{rel_path}: missing column(s) {', '.join(missing_columns)}"]
+
+    current_index, current_duplicates = marker_rows_by_cluster_gene(current_rows)
+    reference_index, reference_duplicates = marker_rows_by_cluster_gene(reference_rows)
+    if current_duplicates or reference_duplicates:
+        return [f"{rel_path}: duplicate cluster/genesymbol rows found"]
+
+    differences = []
+    missing = sorted(set(reference_index) - set(current_index))
+    extra = sorted(set(current_index) - set(reference_index))
+    if missing or extra:
+        differences.append(
+            f"{rel_path}: marker genes differ by cluster: {len(missing)} reference (cluster, gene) row(s) "
+            f"missing, {len(extra)} extra; first missing {missing[:3]}, first extra {extra[:3]}"
         )
-        assert "cluster" in current_columns, f"{rel_path}: missing cluster column"
-        assert "genesymbol" in current_columns, f"{rel_path}: missing genesymbol column"
 
-        current_keys, current_index = marker_rows_by_cluster_gene(rel_path, current_rows)
-        reference_keys, reference_index = marker_rows_by_cluster_gene(rel_path, reference_rows)
-
-        assert sorted(current_keys) == sorted(reference_keys), (
-            f"{rel_path}: marker genes differ by cluster"
+    shared = sorted(set(reference_index) & set(current_index))
+    for column in current_columns:
+        mismatched = [
+            key
+            for key in shared
+            if not marker_value_matches(current_index[key][column], reference_index[key][column])
+        ]
+        if not mismatched:
+            continue
+        gaps = []
+        for key in mismatched:
+            current_numeric = numeric_value(current_index[key][column])
+            reference_numeric = numeric_value(reference_index[key][column])
+            if current_numeric is not None and reference_numeric is not None:
+                gaps.append(abs(current_numeric - reference_numeric))
+        largest = f"; largest abs diff {max(gaps):.6g}" if gaps else ""
+        first = mismatched[0]
+        differences.append(
+            f"{rel_path}: marker column {column} differs in {len(mismatched)} of {len(shared)} shared rows"
+            f"{largest}; first at {first}: "
+            f"{current_index[first][column]!r} != {reference_index[first][column]!r}"
         )
-
-        for key in sorted(reference_keys):
-            current_row = current_index[key]
-            reference_row = reference_index[key]
-            for column in current_columns:
-                assert_marker_value_matches(
-                    rel_path,
-                    column,
-                    current_row[column],
-                    reference_row[column],
-                )
+    return differences
 
 
 def read_gzip_contents(path):
@@ -175,14 +190,16 @@ def read_gzip_contents(path):
         return handle.read()
 
 
-def assert_emptydrops_matrix_contents_match(repo_root, paths):
-    for rel_path in paths:
-        current = read_gzip_contents(repo_root / rel_path)
-        reference = read_gzip_contents(REFERENCE_ROOT / rel_path)
-        assert current == reference, f"{rel_path}: decompressed matrix component differs"
+def emptydrops_matrix_differences(repo_root, paths):
+    return [
+        f"{rel_path}: decompressed matrix component differs"
+        for rel_path in paths
+        if read_gzip_contents(repo_root / rel_path) != read_gzip_contents(REFERENCE_ROOT / rel_path)
+    ]
 
 
-def assert_h5_contents_match(repo_root, paths):
+def h5_differences(repo_root, paths):
+    differences = []
     for rel_path in paths:
         result = subprocess.run(
             ["h5diff", "-q", str(repo_root / rel_path), str(REFERENCE_ROOT / rel_path)],
@@ -190,61 +207,57 @@ def assert_h5_contents_match(repo_root, paths):
             capture_output=True,
             check=False,
         )
-        assert result.returncode == 0, (
-            f"{rel_path}: HDF5 contents differ\n" + result.stdout + result.stderr
-        )
+        if result.returncode != 0:
+            differences.append(
+                (f"{rel_path}: HDF5 contents differ\n" + result.stdout + result.stderr).strip()
+            )
+    return differences
 
 
-def assert_byte_identical(repo_root, paths):
-    mismatches = []
-    for rel_path in paths:
-        current = repo_root / rel_path
-        reference = REFERENCE_ROOT / rel_path
-        if file_sha256(current) != file_sha256(reference):
-            mismatches.append(rel_path)
-
-    assert not mismatches, (
-        "current outputs differ byte-for-byte from reference outputs:\n"
-        + "\n".join(mismatches[:50])
-    )
+def byte_differences(repo_root, paths):
+    return [
+        f"{rel_path}: differs byte-for-byte from the reference"
+        for rel_path in paths
+        if file_sha256(repo_root / rel_path) != file_sha256(REFERENCE_ROOT / rel_path)
+    ]
 
 
-def assert_current_outputs_match_reference(repo_root):
+def reference_differences(repo_root):
+    """Every way the current outputs differ from the reference snapshot (empty when they match).
+
+    Every comparison runs to the end, so that one run of the full test-data workflow (which takes hours)
+    shows all the differences instead of stopping at the first.
+    """
     expected = read_manifest(REFERENCE_OUTPUTS)
 
     missing_current = [path for path in expected if not (repo_root / path).exists()]
-    missing_reference = [
-        path for path in expected if not (REFERENCE_ROOT / path).exists()
-    ]
-    assert not missing_current, (
-        "missing current outputs listed in reference manifest:\n"
-        + "\n".join(missing_current[:50])
-    )
-    assert not missing_reference, (
-        "missing reference outputs listed in reference manifest:\n"
-        + "\n".join(missing_reference[:50])
-    )
+    missing_reference = [path for path in expected if not (REFERENCE_ROOT / path).exists()]
+    differences = [f"{path}: missing from the current outputs" for path in missing_current]
+    differences += [f"{path}: missing from the reference outputs" for path in missing_reference]
+    missing = set(missing_current) | set(missing_reference)
+    present = [path for path in expected if path not in missing]
 
-    seurat_objects = [path for path in expected if is_seurat_object(path)]
-    marker_tables = [path for path in expected if is_marker_table(path)]
-    matrix_components = [
-        path for path in expected if is_emptydrops_matrix_component(path)
-    ]
-    h5_outputs = [path for path in expected if is_cellbender_h5(path)]
-    byte_identical = [
-        path
-        for path in expected
-        if path not in set(seurat_objects + marker_tables + matrix_components + h5_outputs)
-    ]
+    seurat_objects = [path for path in present if is_seurat_object(path)]
+    marker_tables = [path for path in present if is_marker_table(path)]
+    matrix_components = [path for path in present if is_emptydrops_matrix_component(path)]
+    h5_outputs = [path for path in present if is_cellbender_h5(path)]
+    compared_otherwise = set(seurat_objects + marker_tables + matrix_components + h5_outputs)
+    byte_identical = [path for path in present if path not in compared_otherwise]
 
-    assert_seurat_metadata_matches(repo_root, seurat_objects)
-    assert_marker_tables_match(repo_root, marker_tables)
-    assert_emptydrops_matrix_contents_match(repo_root, matrix_components)
-    assert_h5_contents_match(repo_root, h5_outputs)
-    assert_byte_identical(repo_root, byte_identical)
+    differences += seurat_metadata_differences(repo_root, seurat_objects)
+    for path in marker_tables:
+        differences += marker_table_differences(repo_root, path)
+    differences += emptydrops_matrix_differences(repo_root, matrix_components)
+    differences += h5_differences(repo_root, h5_outputs)
+    differences += byte_differences(repo_root, byte_identical)
+    return differences
 
 
-def test_testdata_workflow_run(pytestconfig):
+def tail(text, lines=80):
+    return "\n".join(text.splitlines()[-lines:])
+
+
+def test_testdata_workflow_run(pytestconfig, github_error):
     if not pytestconfig.getoption("--run-workflow"):
         pytest.skip("use --run-workflow to run the full workflow on testdata")
 
@@ -263,11 +276,20 @@ def test_testdata_workflow_run(pytestconfig):
         check=False,
     )
 
-    assert result.returncode == 0, result.stdout + result.stderr
+    if result.returncode != 0:
+        output = result.stdout + result.stderr
+        github_error("Test-data workflow failed", tail(output))
+        pytest.fail(output, pytrace=False)
 
     expected = read_manifest(EXPECTED_OUTPUTS)
     missing = [path for path in expected if not (repo_root / path).exists()]
+    if missing:
+        report = "missing expected workflow outputs:\n" + "\n".join(missing[:50])
+        github_error("Test-data workflow outputs missing", report)
+        pytest.fail(report, pytrace=False)
 
-    assert not missing, "missing expected workflow outputs:\n" + "\n".join(missing[:50])
-
-    assert_current_outputs_match_reference(repo_root)
+    differences = reference_differences(repo_root)
+    if differences:
+        report = "The test-data outputs differ from tests/reference_outputs:\n" + "\n".join(differences)
+        github_error("Test-data outputs differ from the reference", report)
+        pytest.fail(report, pytrace=False)

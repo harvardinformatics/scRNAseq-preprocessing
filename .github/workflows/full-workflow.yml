@@ -12,6 +12,12 @@ jobs:
   run-workflow:
     name: pytest --run-workflow
     runs-on: ubuntu-latest
+    # Run in Rocky Linux 8, the FASRC cluster's OS, so that R computes with the cluster's C math library (glibc 2.28),
+    # as when tests/reference_outputs was made. On the runner's own Ubuntu, SCTransform estimates the dispersion of a
+    # few nearly Poisson genes slightly differently: under Ubuntu 26.04 (ubuntu-latest from November 2026), that
+    # changed a few rounded SCT counts in two of the reference objects and moved two cells to another cluster.
+    container:
+      image: rockylinux:8.10
     timeout-minutes: 360
     permissions:
       contents: read
@@ -27,7 +33,6 @@ jobs:
         --executor local
         --cores 2
       TEST_WORKFLOW_JOBS: "2"
-      TEST_WORKFLOW_FAKE_CELLBENDER_SOURCE: ${{ github.workspace }}/tests/reference_outputs/testdata/results/cellbender
       TEST_WORKFLOW_SNAKEMAKE_ARGS: >-
         --resources mem_mb=8192
         --set-resources
@@ -68,11 +73,23 @@ jobs:
         combine_markers:mem_mb=1024
         combine_markers:runtime=5
     steps:
+      # The image lacks git, which actions/checkout uses, and the en_US.UTF-8 locale the cluster runs R in.
+      - name: Install system packages
+        run: |
+          dnf install -y --setopt=install_weak_deps=False \
+            git tar gzip bzip2 which findutils diffutils procps-ng glibc-langpack-en
+          ldd --version | head -n 1
+          echo "LANG=en_US.UTF-8" >> "${GITHUB_ENV}"
+
       - name: Check out repository
         uses: actions/checkout@v4
 
+      # In a container job, ${{ github.workspace }} names the runner's directory, not the container's,
+      # so these paths come from $GITHUB_WORKSPACE.
       - name: Add test command shims to PATH
-        run: echo "${GITHUB_WORKSPACE}/tests/bin" >> "${GITHUB_PATH}"
+        run: |
+          echo "${GITHUB_WORKSPACE}/tests/bin" >> "${GITHUB_PATH}"
+          echo "TEST_WORKFLOW_FAKE_CELLBENDER_SOURCE=${GITHUB_WORKSPACE}/tests/reference_outputs/testdata/results/cellbender" >> "${GITHUB_ENV}"
 
       - name: Create test environment
         uses: mamba-org/setup-micromamba@v2
@@ -85,10 +102,36 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .snakemake/conda
-          key: snakemake-conda-full-${{ runner.os }}-${{ hashFiles('workflow/envs/*.yml', 'workflow/envs/*.pin.txt') }}
+          # Snakemake hashes each environment's path into its directory name, so environments built outside
+          # the container, under /home/runner, would never be used here.
+          key: snakemake-conda-full-rocky8-${{ hashFiles('workflow/envs/*.yml', 'workflow/envs/*.pin.txt') }}
           restore-keys: |
-            snakemake-conda-full-${{ runner.os }}-
-            snakemake-conda-${{ runner.os }}-
+            snakemake-conda-full-rocky8-
 
       - name: Run full test-data workflow
         run: pytest tests --run-workflow -q
+
+      # On failure, keep what is needed to compare the run with the cluster's: the outputs, Snakemake's logs
+      # (they hold any warning that the pin file could not be installed) and each rule environment's packages.
+      - name: Collect rule environment details
+        if: failure()
+        run: |
+          mkdir -p ci-diagnostics
+          ls -la .snakemake/conda > ci-diagnostics/snakemake-conda-dir.txt 2>&1 || true
+          for env_dir in .snakemake/conda/*_; do
+            [ -d "${env_dir}" ] || continue
+            conda list --explicit -p "${env_dir}" > "ci-diagnostics/$(basename "${env_dir}").explicit.txt" 2>&1 || true
+          done
+          cp .snakemake/conda/*.yaml .snakemake/conda/*.pin.txt ci-diagnostics/ 2>/dev/null || true
+          cp -r .snakemake/log ci-diagnostics/snakemake-log 2>/dev/null || true
+
+      - name: Upload test-data outputs and diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: full-workflow-outputs
+          path: |
+            testdata/results
+            ci-diagnostics
+          retention-days: 14
+          if-no-files-found: warn
